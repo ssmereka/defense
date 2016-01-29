@@ -9,13 +9,13 @@ Defense handles permissions for document storage database objects.  Permissions 
 
 # Getting Started
 
-Install Cramit using npm and save it as a dependency in your package.json.
+Install Defense using npm and save it as a dependency in your package.json.
 
 ```javascript
 npm install defense --save
 ```
 
-You can require Cramit just like every other node.js module.
+You can require Defense just like every other node.js module.
 
 ```javascript
 var defense = require('defense');
