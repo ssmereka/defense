@@ -232,12 +232,235 @@ Defense.prototype.canDelete = function(user, model, resource, cb) {
   cb(undefined, isAllowed);
 };
 
+/**
+ * Check if a user has permissions to read a given 
+ * resource or group of resources. If the user is 
+ * denied access to a single item in a group of 
+ * resources a value of denied will be returned. When 
+ * checking permissions for objects each attribute 
+ * will be evaluated for user permissions. If a single 
+ * attribute fails the permission test, a result of 
+ * denied will be returned. Permission to an entire 
+ * database record type can be evaluated by passing a 
+ * value of undefined as the Resource value.
+ * 
+ * @param {object} user is a user database record, 
+ * typically pulled from the current session.
+ * @param {string} model is the type of database record 
+ * to check permissions against. Should be the same 
+ * type as the Resource provided.
+ * @param {array|object|string|undefined} resource is a 
+ * list of database records, a single database record, 
+ * a single database record's unique identifier, or 
+ * undefined respectively.
+ * @param {canPerformActionCallback} cb is a callback 
+ * method.
+ */
+Defense.prototype.canRead = function(user, model, resource, cb) {
+  var defense = this,
+      isAllowed = false;
+
+  // Check required parameters, without them calling this method would be useless.
+  if( checkRequiredParameter(defense, "canRead", "callback", cb) != true) { return; }
+  if( checkRequiredParameter(defense, "canRead", "user", user, cb) != true) { return; }
+  if( checkRequiredParameter(defense, "canRead", "model", model, cb) != true) { return; }
+
+  // TODO: Determine if the user can read the specified resource.
+
+  cb(undefined, isAllowed);
+};
+
+/**
+ * Check if a user has permissions to update or create 
+ * a given resource or group of resources. If the user 
+ * is denied access to a single item in a group of 
+ * resources a value of denied will be returned. When 
+ * checking permissions for objects each attribute will 
+ * be evaluated for user permissions. If a single 
+ * attribute fails the permission test, a result of 
+ * denied will be returned. Permission to an entire 
+ * database record type can be evaluated by passing a 
+ * value of undefined as the Resource value.
+ * 
+ * @param {object} user is a user database record, 
+ * typically pulled from the current session.
+ * @param {string} model is the type of database record 
+ * to check permissions against. Should be the same 
+ * type as the Resource provided.
+ * @param {array|object|string|undefined} resource is a 
+ * list of database records, a single database record, 
+ * a single database record's unique identifier, or 
+ * undefined respectively.
+ * @param {canPerformActionCallback} cb is a callback 
+ * method.
+ */
+Defense.prototype.canWrite = function(user, model, resource, cb) {
+  var defense = this,
+      isAllowed = false;
+
+  // Check required parameters, without them calling this method would be useless.
+  if( checkRequiredParameter(defense, "canWrite", "callback", cb) != true) { return; }
+  if( checkRequiredParameter(defense, "canWrite", "user", user, cb) != true) { return; }
+  if( checkRequiredParameter(defense, "canWrite", "model", model, cb) != true) { return; }
+
+  // TODO: Determine if the user can write the specified resource.
+
+  cb(undefined, isAllowed);
+};
+
+/**
+ * Checks if a user can read a given resource or group 
+ * of resources. All resources that the user does not 
+ * have permission to read are removed from the 
+ * returned resource list. Attribute permissions for 
+ * the remaining resources are evaluated, removing 
+ * attributes that are not accessible for the user. A 
+ * single object or list of objects are returned 
+ * respective to the Resource parameter type used. For 
+ * example, if an array is passed to the Resource 
+ * parameter, then an array will always be returned.
+ *
+ * Note: A pure javascript object or list of objects 
+ * will be returned. This is due to a limitation 
+ * presented with some database objects (such as 
+ * MongoDB) where attributes cannot be removed. Instead 
+ * we copy the object removing all attached methods.
+ * 
+ * @param {object} user is a user database record, 
+ * typically pulled from the current session.
+ * @param {string} model is the type of database record 
+ * to check permissions against. Should be the same 
+ * type as the Resource provided.
+ * @param {array|object} A list of database records or a 
+ * single database record respectively.
+ * @param {canPerformActionAndSanitizeCallback} cb is a 
+ * callback method.
+ */
+Defense.prototype.sanitizeRead = function(user, model, resource, cb) {
+  var defense = this;
+
+  // Check required parameters, without them calling this method would be useless.
+  if( checkRequiredParameter(defense, "sanitizeRead", "callback", cb) != true) { return; }
+  if( checkRequiredParameter(defense, "sanitizeRead", "user", user, cb) != true) { return; }
+  if( checkRequiredParameter(defense, "sanitizeRead", "model", model, cb) != true) { return; }
+  if( checkRequiredParameter(defense, "sanitizeRead", "resource", resource, cb) != true) { return; }
+
+  // TODO: Determine if the user can read the specified resource.
+  
+  // TODO: Sanitize the array or object.
+
+  cb(undefined, resource);
+};
+
+/**
+ * Checks if a user can read and write to a given 
+ * resource or group of resources. All resources that 
+ * the user does not have permission to read and write 
+ * to are removed from the returned resource list. 
+ * Attribute permissions for the remaining resources are 
+ * evaluated, removing attributes that are not 
+ * accessible for the user. A single object or list of 
+ * objects are returned respective to the Resource 
+ * parameter type used. For example, if an array is 
+ * passed to the Resource parameter, then an array will 
+ * always be returned.
+ *
+ * Note: A pure javascript object or list of objects 
+ * will be returned. This is due to a limitation 
+ * presented with some database objects (such as 
+ * MongoDB) where attributes cannot be removed. Instead 
+ * we copy the object removing all attached methods.
+ * 
+ * @param {object} user is a user database record, 
+ * typically pulled from the current session.
+ * @param {string} model is the type of database record 
+ * to check permissions against. Should be the same 
+ * type as the Resource provided.
+ * @param {array|object} A list of database records or a 
+ * single database record respectively.
+ * @param {canPerformActionAndSanitizeCallback} cb is a 
+ * callback method.
+ */
+Defense.prototype.sanitizeReadWrite = function(user, model, resource, cb) {
+  var defense = this;
+
+  // Check required parameters, without them calling this method would be useless.
+  if( checkRequiredParameter(defense, "sanitizeReadWrite", "callback", cb) != true) { return; }
+  if( checkRequiredParameter(defense, "sanitizeReadWrite", "user", user, cb) != true) { return; }
+  if( checkRequiredParameter(defense, "sanitizeReadWrite", "model", model, cb) != true) { return; }
+  if( checkRequiredParameter(defense, "sanitizeReadWrite", "resource", resource, cb) != true) { return; }
+
+  // TODO: Determine if the user can read and write to the specified resource.
+  
+  // TODO: Sanitize the array or object.
+
+  cb(undefined, resource);
+};
+
+/**
+ * Checks if a user can write to a given resource or 
+ * group of resources. All resources that the user does 
+ * not have permission to write to are removed from the 
+ * returned resource list. Attribute permissions for 
+ * the remaining resources are evaluated, removing 
+ * attributes that are not accessible for the user. A 
+ * single object or list of objects are returned 
+ * respective to the Resource parameter type used. For 
+ * example, if an array is passed to the Resource 
+ * parameter, then an array will always be returned.
+ *
+ * Note: A pure javascript object or list of objects 
+ * will be returned. This is due to a limitation 
+ * presented with some database objects (such as 
+ * MongoDB) where attributes cannot be removed. Instead 
+ * we copy the object removing all attached methods.
+ * 
+ * @param {object} user is a user database record, 
+ * typically pulled from the current session.
+ * @param {string} model is the type of database record 
+ * to check permissions against. Should be the same 
+ * type as the Resource provided.
+ * @param {array|object} A list of database records or a 
+ * single database record respectively.
+ * @param {canPerformActionAndSanitizeCallback} cb is a 
+ * callback method.
+ */
+Defense.prototype.sanitizeWrite = function(user, model, resource, cb) {
+  var defense = this;
+
+  // Check required parameters, without them calling this method would be useless.
+  if( checkRequiredParameter(defense, "sanitizeWrite", "callback", cb) != true) { return; }
+  if( checkRequiredParameter(defense, "sanitizeWrite", "user", user, cb) != true) { return; }
+  if( checkRequiredParameter(defense, "sanitizeWrite", "model", model, cb) != true) { return; }
+  if( checkRequiredParameter(defense, "sanitizeWrite", "resource", resource, cb) != true) { return; }
+
+  // TODO: Determine if the user can write the specified resource.
+  
+  // TODO: Sanitize the array or object.
+
+  cb(undefined, resource);
+};
+
 
 /* ************************************************** *
  * ******************** Private Methods
  * ************************************************** */
 
-
+/**
+ * Checks if the specified parameter is defined, 
+ * generating an error if it is not.  The error is 
+ * returned to the callback method, if provided, and 
+ * logged as a fatal error.
+ * @param {Object} defense is the module's instance. 
+ * @param {String} method is the method's name who was 
+ * expecting the parameter to be defined.
+ * @param {String} name is the name of the parameter.
+ * @param {*} parameter is the parameter's value.
+ * @param {canPerformActionCallback} cb is a callback 
+ * method.
+ * @return {Boolean} true is returned if the parameter 
+ * is defined, false otherwise.
+ */
 var checkRequiredParameter = function(defense, method, name, parameter, cb) {
   if( ! parameter) {
     var error = defense.build.error('The parameter "'+name+'" is a required parameter for the "defense.'+method+'()" method.'), 500);
@@ -280,5 +503,22 @@ exports = Cramit;
  * @param {boolean} isAllowed when true indicates the 
  * user has permission to perform the action on the 
  * specified resource(s).
+ */
+
+/**
+ * This callback is used to return the sanitized array 
+ * or object.  An error and result value will always be 
+ * returned to this method respectively.  If an error 
+ * occured, an empty array or empty object will always 
+ * be returned as well.  If the operation was 
+ * successful, an sanitized array or object will be 
+ * returned matching the object type of the original 
+ * data's type.
+ *
+ * @callback canPerformActionAndSanitizeCallback
+ * @param {object|undefined} error describes the error 
+ * that occurred.
+ * @param {Array|Object} sanitizedData is the sanizited 
+ * array or object.
  */
 
