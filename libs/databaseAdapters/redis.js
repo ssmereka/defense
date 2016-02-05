@@ -181,6 +181,47 @@ module.exports = function(lib) {
     async.parallel(tasks, cb);
   };
 
+
+
+  RedisAdapter.prototype.findItemsById = function(schemaName, ids, cb) {
+    var adapter = this;
+
+    // Make sure the callback is defined and displays errors
+    if( ! cb) {
+      cb = function(err) { if(err) { lib.log.error(err); } };
+    }
+
+    // Make sure the ids parameter is an array.
+    if( ! _.isArray(ids)) {
+      ids = [ids];
+    }
+
+    // The schema needs to be defined.
+    if( ! schemaName) {
+      adapter.db.mget(ids, function(err, item) {
+        if(err) {
+          cb(err);
+        } else if (item === undefined || item === null) {
+          lib.log.trace("RedisAdapter.findItemsById():  Key %s was not found.", ids);
+          cb();
+        } else {
+          cb(undefined, item);
+        }
+      });
+    } else {
+      adapter.db.hmget(schemaName, ids.join(" "), function(err, item) {
+        if (err) {
+          cb(err);
+        } else if (item === undefined || item === null) {
+          lib.log.trace("RedisAdapter.findItemsById():  Schema %s with id %s was not found.", schemaName, ids);
+          cb();
+        } else {
+          cb(undefined, item);
+        }
+      });
+    }
+  }
+
   /**
    * Find an item by ID in the specified document.
    *

@@ -1,5 +1,5 @@
 var bunyan = require('bunyan');
-var PrettySteam = require('bunyan-pretty-stream');
+var PrettyStream = require('bunyan-pretty-stream');
 
 
 /* ************************************************** *
@@ -17,13 +17,17 @@ Log.prototype.createLogger = function(options) {
 
   if( ! options.bunyanInstance) {
     if ( ! options.createLoggerConfig) {
+      //var prettyStdOut = new PrettySteam();
+      //prettyStdOut.pipe(process.stdout);
+
       options.createLoggerConfig = {
         name: "defense",
         serializers: bunyan.stdSerializers,
         streams: [
           {
             level: 'info',
-            stream: new PrettySteam()
+            //type: 'raw',
+            stream: new PrettyStream() // prettyStdOut //process.stdout//new PrettySteam()
           }
         ]
       }

@@ -302,16 +302,29 @@ Defense.prototype.canRead = function(user, model, resource, cb) {
     }
   });
 
-  defense.pt.buildAndGet("user", "*", "user", "*", function(err, assertion) {
+  defense.pt.buildAndAdd("user", "*", "user", "123", defense.pt.r, function(err) {
     if(err) {
       defense.log.error(err);
     }
-    defense.log.info(assertion);
   });
 
-  defense.pt.buildAndGet("user", "*", model, resource._id, function(err, assertion) {
-    defense.pt.buildAndGet("user", "*", model, resource._id, function(err, assertion) {
+  defense.pt.checkPermissions("user", "*", "user", "123", defense.pt.r, function(err, isAllowed) {
+    if(err) {
+      defense.log.error(err);
+    }
+    defense.log.info("Can read? " + isAllowed);
   });
+
+  defense.pt.checkPermissions("user", "1", "user", "123", defense.pt.rw, function(err, isAllowed) {
+    if(err) {
+      defense.log.error(err);
+    }
+    defense.log.info("Can read/write? " + isAllowed);
+  });
+
+  //defense.pt.buildAndGet("user", "*", model, resource._id, function(err, assertion) {
+  //  defense.pt.buildAndGet("user", "*", model, resource._id, function(err, assertion) {
+  //});
 
 
 

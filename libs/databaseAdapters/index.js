@@ -134,6 +134,12 @@ DatabaseAdapter.prototype.findItemById = function(schemaName, id, cb) {
   cb(error);
 };
 
+DatabaseAdapter.prototype.findItemsById = function(schemaName, id, cb) {
+  var error = this.error.build("Current database adapter has not implemented the findItemsById method.", 500)
+  this.log.error(error);
+  cb(error);
+};
+
 /**
  * Find an item by ID in a list of items.
  *
