@@ -1,0 +1,42 @@
+{
+  "author": "Scott Smereka",
+  "bugs": {
+    "url": "https://github.com/ssmereka/defense/issues"
+  },
+  "contributors": [
+    {
+      "name": "Corey Maylone"
+    }
+  ],
+  "dependencies": {
+    "express": "~4.13.4"
+  },
+  "directories": {},
+  "description": "Example usage of how to use defense permissions.",
+  "devDependencies": {},
+  "engines": {
+    "node": ">=4.2.6"
+  },
+  "homepage": "https://github.com/ssmereka/defense/example#readme",
+  "keywords": [
+    "defense",
+    "example"
+  ],
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://github.com/ssmereka/defense/blob/master/license"
+    }
+  ],
+  "main": "index.js",
+  "name": "defense-example",
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ssmereka/defense.git"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "version": "0.0.1"
+}

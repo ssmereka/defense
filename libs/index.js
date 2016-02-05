@@ -2,35 +2,36 @@
  * ******************** Library Global Variables
  * ************************************************** */
 
+// External Modules.
 var async = require('async'),
   crave = require('crave'),
   path = require('path'),
   _ = require('lodash');
 
+// Local paths and folders.
+var databaseAdaptersFolder = path.resolve(__dirname, '.'+path.sep+'databaseAdapters') + path.sep,
+    permissionTableFolder = path.resolve(__dirname, '.'+path.sep+'permissionTable') + path.sep
+    logFolder = path.resolve(__dirname, '.'+path.sep+'log') + path.sep;
+
+// Local Modules.
+var Log = require(logFolder),
+    PermissionTable = require(permissionTableFolder);
+
 // Default configuration object.
 var defaultConfig = {
-  database: {
+  attributePermissionDatabase: {
     connectionUri: undefined,
     idAttributeName: undefined,
     instance: undefined,
-    type: undefined
+    type: 'mongoose'
   },
-  crave: {
-    cache: {                    // Crave can store the list of files to load rather than create it each time.
-      enable: false             // Disable caching of the list of files to load.  In production this should be enabled.
-    },
-    identification: {           // Variables related to how to find and require files are stored here.
-      type: "filename",         // Determines how to find files.  Available options are: 'string', 'filename'
-      identifier: "_"           // Determines how to identify the files.
-    }
-  },
-  fixture: {}
+  permissionTableDatabase: {
+    connectionUri: undefined,
+    instance: undefined,
+    type: 'redis'
+  }
 };
 
-var defaultLogConfig = {
-  level: 40, //Information about Levels https://github.com/trentm/node-bunyan#levels
-  name: 'Defense'
-};
 
 /* ************************************************** *
  * ******************** Constructor
@@ -46,17 +47,16 @@ var defaultLogConfig = {
  * @returns {object} the new or current Defense instance.
  * @constructor
  */
-var Defense = function(config, log, error) {
+var Defense = function(options, log, error) {
   "use strict";
 
   // Auto instantiate the module when it is required.
   if(! (this instanceof Defense)) {
-    return new Defense(config, log, error);
+    return new Defense(options);
   } else {
 
-    // Initalize the class with the passed parameters.
-    this.setConfig(config, true);
-    this.setLog(log);
+    this.setConfig(options);
+    this.setLog(log, (options) ? options.log : undefined);
     this.setError(error);
 
     return this;
@@ -83,34 +83,45 @@ var Defense = function(config, log, error) {
  * default settings before applying the passed
  * configuration values.
  */
-Defense.prototype.setConfig = function(config, initalize) {
-  if(initalize && ! this.config) {
-    this.config = JSON.parse(JSON.stringify(defaultConfig));
-  }
+Defense.prototype.setConfig = function(config) {
+  if(config && _.isObject(config)) {
+    
+    if( ! this.config) {
+      this.config = JSON.parse(JSON.stringify(defaultConfig));
+    }
 
-  if( ! config || ! _.isObject(config) && ! initalize) {
-    this.config = JSON.parse(JSON.stringify(defaultConfig));
-  } else {
     for(var key in config) {
-      for(var subObjectKey in config[key]) {
-        this.config[key][subObjectKey] = config[key][subObjectKey];
+      switch(key) {
+        case "crave":
+          this.config[key] = config[key];
+          break;
+        default:
+          for(var subObjectKey in config[key]) {
+            this.config[key][subObjectKey] = config[key][subObjectKey];
+          }
+          break;
       }
     }
+  } else {
+    this.config = JSON.parse(JSON.stringify(defaultConfig));
   }
 
-  this.setDatabaseAdapter();
+  this.setDatabaseAdapters();
 };
 
 /**
  * Set the database instance to the specified value.
+ * PreCondition: Assumes setConfig has already been called at least once.
  * @param databaseInstance is the new database instance value.
  */
-Defense.prototype.setDatabaseInstance = function(databaseInstance) {
-  if( ! this.config || ! _.isObject(this.config)) {
-    this.config = JSON.parse(JSON.stringify(defaultConfig));
-  }
-  this.config.database.instance = databaseInstance;
-  this.setDatabaseAdapter();
+Defense.prototype.setPermissionTableDatabaseInstance = function(instance) {
+  this.config.permissionTableDatabase.instance = instance;
+  this.setDatabaseAdapters();
+};
+
+Defense.prototype.setAttributePermissionDatabaseInstance = function(instance) {
+  this.config.attributePermissionDatabase.instance = instance;
+  this.setDatabaseAdapters();
 };
 
 /**
@@ -124,14 +135,26 @@ Defense.prototype.setDatabaseInstance = function(databaseInstance) {
  * configuration object.
  * @param {object|undefined} log is a bunyan instance.
  */
-Defense.prototype.setLog = function(config, log) {
+Defense.prototype.setLog = function(log, options) {
+  if(log) {
+    this.setLogInstance(log);
+  } else {
+    this.createNewLogger(options);
+  }  
+};
+
+Defense.prototype.setLogInstance = function(log) {
   if(log) {
     this.log = log;
   } else {
-    var bunyan = require('bunyan');
-    this.log = bunyan.createLogger(config || defaultLogConfig);
-  }
+    this.log.error("Defense.setLogInstance():  Cannot set log to an invalid instance value.");
+  }  
 };
+
+Defense.prototype.createNewLogger = function(options) {
+  this.Log = new Log((this.config) ? this.config.log : undefined);
+  this.log = this.Log.createLogger(options);
+}
 
 /**
  * Set or configure the Defense error object.
@@ -169,27 +192,33 @@ Defense.prototype.setError = function(error) {
  * @param {undefined|object} config is a Defense configuration
  * object.
  */
-Defense.prototype.setDatabaseAdapter = function(config) {
+Defense.prototype.setDatabaseAdapters = function() {
   var defense = this;
 
-  config = config || defense.config;
+  defense.ptda = getDatabaseAdapter(defense, defense.config.permissionTableDatabase.type);
+  
 
-  switch((config && config.database && config.database.type) ? config.database.type.toLowerCase(): "") {
-    case 'mongoose':
-      if( ! defense.MongooseAdapter) {
-        defense.MongooseAdapter = require(databaseAdaptersFolder + 'mongoose.js');
-      }
-
-      defense.databaseAdapter = defense.MongooseAdapter(defense);
-      break;
-
-    default:
-      if( ! defense.DatabaseAdapter) {
-        defense.DatabaseAdapter = require(databaseAdaptersFolder + 'index.js');
-      }
-      defense.databaseAdapter = defense.DatabaseAdapter(defense.config, defense.log);
-      break;
+  if( ! defense.pt) {
+    defense.pt = new PermissionTable(defense);  
+  } else {
+    defense.pt.setConfig(defense.config);
   }
+
+  //defense.apda = getDatabaseAdapter(defense, defense.config.attributePermissionDatabase.type);
+};
+
+
+
+/**
+ * A method used to aid in the creation of a class
+ * that will inherit another class.  Used to generate
+ * the proper prototype object that will be used
+ * by the child class.
+ */
+Defense.prototype.inherit = function(proto) {
+  function F() {}
+  F.prototype = proto;
+  return new F;
 };
 
 
@@ -266,6 +295,25 @@ Defense.prototype.canRead = function(user, model, resource, cb) {
   if( checkRequiredParameter(defense, "canRead", "model", model, cb) != true) { return; }
 
   // TODO: Determine if the user can read the specified resource.
+
+  defense.pt.buildAndAdd("user", "*", "user", "*", defense.pt.r, function(err) {
+    if(err) {
+      defense.log.error(err);
+    }
+  });
+
+  defense.pt.buildAndGet("user", "*", "user", "*", function(err, assertion) {
+    if(err) {
+      defense.log.error(err);
+    }
+    defense.log.info(assertion);
+  });
+
+  defense.pt.buildAndGet("user", "*", model, resource._id, function(err, assertion) {
+    defense.pt.buildAndGet("user", "*", model, resource._id, function(err, assertion) {
+  });
+
+
 
   cb(undefined, isAllowed);
 };
@@ -463,7 +511,7 @@ Defense.prototype.sanitizeWrite = function(user, model, resource, cb) {
  */
 var checkRequiredParameter = function(defense, method, name, parameter, cb) {
   if( ! parameter) {
-    var error = defense.build.error('The parameter "'+name+'" is a required parameter for the "defense.'+method+'()" method.'), 500);
+    var error = defense.build.error('The parameter "'+name+'" is a required parameter for the "defense.'+method+'()" method.', 500);
     this.log.fatal(error);
     if(cb) {
       cb(error);
@@ -474,13 +522,28 @@ var checkRequiredParameter = function(defense, method, name, parameter, cb) {
   }
 }
 
+var getDatabaseAdapter = function(defense, databaseType) {
+  databaseType = (databaseType) ? databaseType.toLowerCase() : "";
+  switch(databaseType) {
+    case 'mongoose':
+    case 'redis':
+      if( ! defense.RedisAdapter) {
+        defense[databaseType + "Adapter"] = require(databaseAdaptersFolder + databaseType +'.js');
+      }
+      return defense[databaseType + "Adapter"](defense);
+    default:
+      defense.log.fatal("Defense.getDatabaseAdapter():  Invalid and unsupported database adapter type.");
+      return undefined;
+  }
+}
+
 
 /* ************************************************** *
  * ******************** Expose the Public API
  * ************************************************** */
 
-exports = module.exports = Cramit;
-exports = Cramit;
+exports = module.exports = Defense;
+exports = Defense;
 
 
 /* ************************************************** *
