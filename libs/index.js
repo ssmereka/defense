@@ -296,32 +296,41 @@ Defense.prototype.canRead = function(user, model, resource, cb) {
 
   // TODO: Determine if the user can read the specified resource.
 
-  defense.pt.buildAndAdd("user", "*", "user", "*", defense.pt.r, function(err) {
+  var assertions = [];
+  assertions.push(defense.pt.build("user", "1", "user", "*", defense.pt.rw));
+  assertions.push(defense.pt.build("user", "*", "user", "*", defense.pt.r));
+  assertions.push(defense.pt.build("user", "*", "user", "123", defense.pt.r));
+  assertions.push(defense.pt.build("user", "*", "user", "123", defense.pt.rw));
+
+  defense.pt.add(assertions, function(err, result) {
+    if(err) { defense.log.error(err); }
+
+    defense.pt.get(assertions, function(err, items) {
+      if(err) { defense.log.error(err); }
+      console.log(items);
+    });
+
+    defense.pt.get(assertions[0], function(err, item) {
+      if(err) { defense.log.error(err); }
+      defense.log.info(item);
+    });
+  });
+
+/*
+  defense.pt.can("user", "*", "user", "123", defense.pt.r, function(err, isAllowed) {
     if(err) {
       defense.log.error(err);
     }
+    defense.log.info("Can read? %s", isAllowed);
   });
 
-  defense.pt.buildAndAdd("user", "*", "user", "123", defense.pt.r, function(err) {
-    if(err) {
-      defense.log.error(err);
-    }
-  });
-
-  defense.pt.checkPermissions("user", "*", "user", "123", defense.pt.r, function(err, isAllowed) {
-    if(err) {
-      defense.log.error(err);
-    }
-    defense.log.info("Can read? " + isAllowed);
-  });
-
-  defense.pt.checkPermissions("user", "1", "user", "123", defense.pt.rw, function(err, isAllowed) {
+  defense.pt.can("user", "1", "user", "123", defense.pt.rwd, function(err, isAllowed) {
     if(err) {
       defense.log.error(err);
     }
     defense.log.info("Can read/write? " + isAllowed);
   });
-
+*/
   //defense.pt.buildAndGet("user", "*", model, resource._id, function(err, assertion) {
   //  defense.pt.buildAndGet("user", "*", model, resource._id, function(err, assertion) {
   //});

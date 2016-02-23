@@ -131,7 +131,7 @@ module.exports = function(lib) {
           if(err) {
             cb(err);
           } else {
-            lib.log.trace("Added %s", JSON.stringify(newItem));
+            lib.log.trace("Added %s to redis database.", JSON.stringify(item));
             cb(undefined, newItem);
           }
         });
@@ -140,7 +140,7 @@ module.exports = function(lib) {
           if(err) {
             cb(err);
           } else {
-            lib.log.trace("Added %s, %s", schemaName, json.stringify(newItem));
+            lib.log.trace("Added %s for schema %s to redis database", json.stringify(newItem), schemaName);
             cb(undefined, newItem);
           }
         });
@@ -198,25 +198,25 @@ module.exports = function(lib) {
 
     // The schema needs to be defined.
     if( ! schemaName) {
-      adapter.db.mget(ids, function(err, item) {
+      adapter.db.mget(ids, function(err, items) {
         if(err) {
           cb(err);
-        } else if (item === undefined || item === null) {
+        } else if (items === undefined || items === null) {
           lib.log.trace("RedisAdapter.findItemsById():  Key %s was not found.", ids);
           cb();
         } else {
-          cb(undefined, item);
+          cb(undefined, items);
         }
       });
     } else {
-      adapter.db.hmget(schemaName, ids.join(" "), function(err, item) {
+      adapter.db.hmget(schemaName, ids.join(" "), function(err, items) {
         if (err) {
           cb(err);
-        } else if (item === undefined || item === null) {
+        } else if (items === undefined || items === null) {
           lib.log.trace("RedisAdapter.findItemsById():  Schema %s with id %s was not found.", schemaName, ids);
           cb();
         } else {
-          cb(undefined, item);
+          cb(undefined, items);
         }
       });
     }
