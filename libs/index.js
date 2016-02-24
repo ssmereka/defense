@@ -29,7 +29,10 @@ var defaultConfig = {
     connectionUri: undefined,
     instance: undefined,
     type: 'redis'
-  }
+  },
+  userModel: "user",
+  userModelId: "_id",
+  defaultId: "_id"
 };
 
 
@@ -226,6 +229,42 @@ Defense.prototype.inherit = function(proto) {
  * ******************** Public API
  * ************************************************** */
 
+Defense.prototype.setup = function(cb) {
+  var defense = this;
+  var assertions = [];
+  assertions.push(defense.pt.build("user", "1", "user", "*", defense.pt.rw));
+  assertions.push(defense.pt.build("user", "*", "user", "*", defense.pt.r));
+  assertions.push(defense.pt.build("user", "1", "user", "123", defense.pt.n));
+  assertions.push(defense.pt.build("user", "*", "user", "321", defense.pt.rw));
+
+  defense.pt.add(assertions, function(err, result) {
+    if(err) { defense.log.error(err); }
+
+    defense.pt.get(assertions, function(err, items) {
+      if(err) { defense.log.error(err); }
+      
+      defense.pt.remove(assertions, function(err, items) {
+        if(err) { defense.log.error(err); }
+
+        defense.pt.add(assertions, function(err, result) {
+          if(err) { defense.log.error(err); }
+
+          defense.pt.can("user", "*", "user", "123", defense.pt.r, function(err, isAllowed) {
+            if(err) { defense.log.error(err); }
+          });
+
+          defense.pt.can("user", "*", "user", "123", defense.pt.rwd, function(err, isAllowed) {
+            if(err) { defense.log.error(err); }
+            defense.log.info("Setup Complete");
+            cb();
+          });
+        });
+      });
+    });
+  });
+}
+
+
 /**
  * Check if a user has permission to delete a given 
  * resource or group of resources. If the user is 
@@ -278,66 +317,49 @@ Defense.prototype.canDelete = function(user, model, resource, cb) {
  * @param {string} model is the type of database record 
  * to check permissions against. Should be the same 
  * type as the Resource provided.
- * @param {array|object|string|undefined} resource is a 
+ * @param {array|object|string|undefined} resources is a 
  * list of database records, a single database record, 
  * a single database record's unique identifier, or 
  * undefined respectively.
  * @param {canPerformActionCallback} cb is a callback 
  * method.
  */
-Defense.prototype.canRead = function(user, model, resource, cb) {
-  var defense = this,
-      isAllowed = false;
+Defense.prototype.canRead = function(user, model, resources, cb) {
+  var defense = this;
 
   // Check required parameters, without them calling this method would be useless.
   if( checkRequiredParameter(defense, "canRead", "callback", cb) != true) { return; }
   if( checkRequiredParameter(defense, "canRead", "user", user, cb) != true) { return; }
   if( checkRequiredParameter(defense, "canRead", "model", model, cb) != true) { return; }
 
-  // TODO: Determine if the user can read the specified resource.
+  if( ! resources) {
+    return cb(undefined, true);
+  } else if( ! _.isArray(resources)) {
+    resources = [ resources ];
+  } else if( resources.length == 0) {
+    return cb(undefined, true);
+  }
 
-  var assertions = [];
-  assertions.push(defense.pt.build("user", "1", "user", "*", defense.pt.rw));
-  assertions.push(defense.pt.build("user", "*", "user", "*", defense.pt.r));
-  assertions.push(defense.pt.build("user", "*", "user", "123", defense.pt.r));
-  assertions.push(defense.pt.build("user", "*", "user", "123", defense.pt.rw));
+  var tasks = [];
 
-  defense.pt.add(assertions, function(err, result) {
-    if(err) { defense.log.error(err); }
-
-    defense.pt.get(assertions, function(err, items) {
-      if(err) { defense.log.error(err); }
-      console.log(items);
-    });
-
-    defense.pt.get(assertions[0], function(err, item) {
-      if(err) { defense.log.error(err); }
-      defense.log.info(item);
-    });
-  });
-
-/*
-  defense.pt.can("user", "*", "user", "123", defense.pt.r, function(err, isAllowed) {
-    if(err) {
-      defense.log.error(err);
+  if(_.isObject(resources[0])) {
+    for(var i = 0; i < resources.length; i++) {
+      tasks.push(defense.pt.createCanMethod(defense.config.userModel, user[defense.config.defaultId], model, resources[i][defense.config.defaultId], defense.pt.r, true));
     }
-    defense.log.info("Can read? %s", isAllowed);
-  });
-
-  defense.pt.can("user", "1", "user", "123", defense.pt.rwd, function(err, isAllowed) {
-    if(err) {
-      defense.log.error(err);
+  } else {
+    for(var i = 0; i < resources.length; i++) {
+      tasks.push(defense.pt.createCanMethod(defense.config.userModel, user[defense.config.defaultId], model, resources[i], defense.pt.r, true));
     }
-    defense.log.info("Can read/write? " + isAllowed);
+  }
+
+  // TODO: Is series better than parallel for this?
+  async.series(tasks, function(err, results) {
+    if(err) {
+      cb(err, false);
+    } else {
+      cb(undefined, true);
+    }
   });
-*/
-  //defense.pt.buildAndGet("user", "*", model, resource._id, function(err, assertion) {
-  //  defense.pt.buildAndGet("user", "*", model, resource._id, function(err, assertion) {
-  //});
-
-
-
-  cb(undefined, isAllowed);
 };
 
 /**

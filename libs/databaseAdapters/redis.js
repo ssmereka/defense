@@ -243,7 +243,7 @@ module.exports = function(lib) {
 
     // The ID should always be a valid string.
     if( ! id || ! _.isString(id)) {
-      return cb(lib.error.build('RedisAdapter.findById():  Cannot find an item with an invalid ID.'));
+      return cb(lib.error.build('RedisAdapter.findItemById():  Cannot find an item with an invalid ID.'));
     }
 
     // The schema needs to be defined.
@@ -299,27 +299,27 @@ module.exports = function(lib) {
 
     // The schema needs to be defined.
     if( ! schemaName) {
-      adapter.db.del(id, function(err, item) {
+      adapter.db.del(id, function(err, result) {
         if(err) {
           cb(err);
-        } else if( ! item) {
-          lib.log.trace("RedisAdapter.removeItemById():  Key %s already removed.", schemaName, id);
+        } else if( ! result) {
+          lib.log.trace("Already removed '%s' from the redis database.", id);
           cb();
         } else {
-          lib.log.trace("RedisAdapter.removeItemById():  Key %s removed.", schemaName, id);
-          cb(undefined, item);
+          lib.log.trace("Removed '%s' from the redis database.", id);
+          cb(undefined, id);
         }
       });
     } else {
-      adapter.db.hdel(schemaName, id, function(err, item) {
+      adapter.db.hdel(schemaName, id, function(err, result) {
         if(err) {
           cb(err);
-        } else if( ! item) {
-          lib.log.trace("RedisAdapter.removeItemById():  Schema %s with item id %s already removed.", schemaName, id);
+        } else if( ! result) {
+          lib.log.trace("Already removed '%s' from the redis database.", id);
           cb();
         } else {
-          lib.log.trace("RedisAdapter.removeItemById():  Schema %s with item id %s removed.", schemaName, id);
-          cb(undefined, item);
+          lib.log.trace("Removed '%s' fromt he redis database.", id);
+          cb(undefined, id);
         }
       });
     }
@@ -382,7 +382,7 @@ module.exports = function(lib) {
    * the database.
    * @param {cudMultipleItemCallback} cb is a callback method.
    */
-  RedisAdapter.prototype.removeItems = function(items, schemaName, cb) {
+  RedisAdapter.prototype.removeItems = function(schemaName, items, cb) {
     this.removeItemsById(schemaName, items, cb);
   };
 

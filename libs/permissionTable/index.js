@@ -19,9 +19,12 @@ var PermissionTable = function(defense) {
   this.lib = defense;
   this.delimiter = ":";
   this.operators = {
-      wildcard: "*",
-      owner: "@"
-    };
+    wildcard: "*",
+    owner: "@"
+  };
+  this.defaultPermission = this.n;
+  //this.defaultAssertion = buildAssertion(this, this.operators.wildcard, this.operators.wildcard, this.operators.wildcard, this.operators.wildcard, this.defaultPermission);
+  this.defaultAssertionObject = buildAssertionObject(this, this.operators.wildcard, this.operators.wildcard, this.operators.wildcard, this.operators.wildcard, this.defaultPermission, 0);
 }
 
 
@@ -29,40 +32,92 @@ var PermissionTable = function(defense) {
  * ******************** Public API
  * ************************************************** */
 
+/**
+ * Build an assertion object from the key components.
+ * @param {String} scopeModel is the scope model identifier.
+ * @param {String} scopeId is the scope id identifier.
+ * @param {String} entityModel is the entity model identifier.
+ * @param {String} entityId is the entity id identifier.
+ * @param {Number} permission is the permission value.
+ * @return {Object} an assertion object.
+ */
 PermissionTable.prototype.build = function(scopeModel, scopeId, entityModel, entityId, permission) {
   return buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission);
 }
 
+/**
+ * Add one or more assertions to the database.
+ * @param {Array|Object} assertions are a single or 
+ * list of assertion objects to be inserted into the 
+ * database.
+ * @param {databaseCallback} cb is a callback method.
+ */
 PermissionTable.prototype.add = function(assertions, cb) {
   this.lib.ptda.addItems(undefined, assertions, cb);
 }
 
-PermissionTable.prototype.remove = function(assertions, cb) {
-  this.lib.ptda.removeItems(undefined, assertion, cb);
-}
-
-PermissionTable.prototype.get = function(assertions, cb) {
+/**
+ * Remove one or more assertions from the database.
+ * @param {Array|Object} assertions are a single or list 
+ * of assertion objects or assertion keys to be removed from the database
+ * @param {databaseCallback} cb is a callback method.
+ */
+PermissionTable.prototype.remove = function(assertions, cb) { 
+  if( ! assertions) {
+    this.lib.log.warn("PermissionTable.get():  Cannot remove assertions with value of '%s'", assertions)
+    return cb(undefined, []);
+  }
+    
+  // Ensure our assertion(s) are in an array.
   if( ! _.isArray(assertions)) {
     assertions = [ assertions ];
+  } else if(assertions.length == 0) {
+    return cb(undefined, []);
   }
-  console.log(assertions);
-  if(assertions && assertions.length > 0) {
-    if(_.isString(assertions[0])) {
-      this.lib.ptda.findItemsById(undefined, assertions, createCombineMethod(assertions, cb));
-    } else {
-      var keys = [];
-      for(var i = 0; i < assertions.length; i++) {
-        keys.push(Object.keys(assertions[i])[0]);
-      }
-      this.lib.ptda.findItemsById(undefined, keys, createCombineMethod(keys, cb));
+  
+  // Check if the assertion(s) are just String assertion key(s).
+  if(_.isString(assertions[0])) {
+    this.lib.ptda.removeItems(undefined, assertions, cb);
+  } else {
+    var keys = [];
+    for(var i = 0; i < assertions.length; i++) {
+      keys.push(Object.keys(assertions[i])[0]);
     }
+    this.lib.ptda.removeItems(undefined, keys, cb);
   }
 }
 
-PermissionTable.prototype.combine = function(assertions, results) {
-  return combine(assertions, results);
+/**
+ * Find one or more assertions in the database using 
+ * the assertion's key value.
+ * @param {Object} assertions is one or more 
+ * assertions or assertion keys.
+ * @param {} cb is a callback method.
+ */
+PermissionTable.prototype.get = function(assertions, cb) {
+  if( ! assertions) {
+    this.lib.log.warn("PermissionTable.get():  Cannot find assertions with value of '%s'", assertions)
+    return cb(undefined, []);
+  }
+    
+  // Ensure our assertion(s) are in an array.
+  if( ! _.isArray(assertions)) {
+    assertions = [ assertions ];
+  } else if(assertions.length == 0) {
+    return cb(undefined, []);
+  }
+  
+  // Check if the assertion(s) are just String assertion key(s).
+  if(_.isString(assertions[0])) {
+    this.lib.ptda.findItemsById(undefined, assertions, createCombineMethod(this, assertions, cb));
+  } else {
+    var keys = [];
+    for(var i = 0; i < assertions.length; i++) {
+      keys.push(Object.keys(assertions[i])[0]);
+    }
+    this.lib.ptda.findItemsById(undefined, keys, createCombineMethod(this, keys, cb));
+  }
 }
-
 
 PermissionTable.prototype.buildAndAdd = function(scopeModel, scopeId, entityModel, entityId, permission, cb) {
   this.add(buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission), cb);
@@ -72,33 +127,42 @@ PermissionTable.prototype.buildAndRemove = function(scopeModel, scopeId, entityM
   this.remove(buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission), cb);
 }
 
-
-
-
-
-
-PermissionTable.prototype.buildAndGet = function(scopeModel, scopeId, entityModel, entityId, cb) {
-  this.get(this.buildAssertionKey(scopeModel, scopeId, entityModel, entityId), cb);
+PermissionTable.prototype.buildAndGet = function(scopeModel, scopeId, entityModel, entityId, permission, cb) {
+  this.get(buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission), cb);
 }
-
-/*PermissionTable.prototype.get = function(assertionKey, cb) {
-  this.lib.ptda.findItemById(undefined, assertionKey, cb);
-}*/
-
 
 PermissionTable.prototype.can = function(scopeModel, scopeId, entityModel, entityId, permission, cb) {
   var pt = this,
     resource = buildResourceObject(pt, scopeModel, scopeId, entityModel, entityId);
-  
-  pt.lib.log.trace("PermissionTable.can(): Check for %s permission(s) for %s.", pt.permissionToString(permission), JSON.stringify(resource));
 
   getAssertion(pt, resource, function(err, assertion) {
     if(err) {
       cb(err);
+    } else if( ! assertion || assertion.permissions == undefined) {
+      pt.lib.log.trace("Default: PermissionTable.can(): Checked for %s permission(s) for %s and found permission of %s, so permission %s.", pt.permissionToString(permission), JSON.stringify(resource), pt.permissionToString(pt.defaultPermission), permissionAllowedString((pt.defaultPermission & permission) == permission));
+      cb(undefined, (pt.defaultPermission & permission) == permission)
     } else {
+      pt.lib.log.trace("PermissionTable.can(): Checked for %s permission(s) for %s and found permission of %s, so permission %s.", pt.permissionToString(permission), JSON.stringify(resource), pt.permissionToString(assertion.permissions), permissionAllowedString((assertion.permissions & permission) == permission));
       cb(undefined, (assertion.permissions & permission) == permission);
     }
   });
+}
+
+PermissionTable.prototype.createCanMethod = function(scopeModel, scopeId, entityModel, entityId, permission, errorOnPermissionDenied) {
+  var pt = this;
+  return function(cb) {
+    pt.can(scopeModel, scopeId, entityModel, entityId, permission, function(err, isAllowed) {
+      if(err) {
+        cb(err);
+      } else {
+        if(errorOnPermissionDenied && ! isAllowed) {
+          cb(new Error("Permission denied to one or more items."));
+        } else {
+          cb(undefined, isAllowed);
+        }
+      }
+    });
+  };
 }
 
 PermissionTable.prototype.permissionToAbbreviatedString = function(permission) {
@@ -125,7 +189,8 @@ PermissionTable.prototype.permissionToString = function(permission) {
     case 2: return "write";
     case 1: return "delete";
     case 0: return "none";
-    default: return "Invalid permission value";
+    default: 
+      return "Invalid permission value: "+permission;
   }
 }
 
@@ -149,29 +214,62 @@ PermissionTable.prototype.n   = 0;
  * ******************** Assertion Key/Value
  * ************************************************** */
 
+var permissionAllowedString = function(isAllowed) {
+  return (isAllowed) ? "granted" : "denied";
+}
 
-var createCombineMethod = function(assertions, cb) {
+/**
+ * Create a method to accept a response from a database 
+ * query and combine the list of assertion keys and 
+ * query results to create a list of full assertion 
+ * key/values.
+ * @param {Object} pt is the policy table instance.
+ * @param {Array} assertions a list of assertion keys.
+ * @param {} cb is a callback method.
+ */
+var createCombineMethod = function(pt, assertions, cb) {
   return function(err, results) {
-    cb(undefined, combine(assertions, results));
+    cb(undefined, combine(pt, assertions, results));
   }
 }
 
-var combine = function(assertions, results) {
+/**
+ * Combine a list of assertion keys and query results 
+ * to create a list of full assertion key/values.
+ * @param {Object} pt is the policy table instance.
+ * @param {Array} assertions a list of assertion keys.
+ * @param {Array} results a list of query results.
+ * @return {Array} a list of assertion key/value objects.
+ */
+var combine = function(pt, assertions, results) {
   var ary = [];
   
-  if( ! _.isArray(assertions)) {
-    assertions = [assertions];
+  // Make sure preconditions are met.
+  if( ! assertions || ! _.isArray(assertions)) {
+    pt.lib.log.warn("combine(): Cannot combine assertions with a value of '%s'", assertions);
+    return ary;
+  } else if( ! results || ! _.isArray(results)) {
+    pt.lib.log.warn("combine(): Cannot combine results with a value of '%s'", results)
+    return ary;
+  } else if(assertions.length != results.length) {
+    pt.lib.log.warn("combine(): Cannot combine assertions(%s) and results(%s) properly when they have different lengths.", assertions.length, results.length);
+    return ary;
   }
 
-  if(assertions && assertions.length > 0) {
-    for(var i = 0; i < results.length; i++) {
-      if(results[i] != null) {
-        var obj = {};
-        obj[assertions[i]] = results[i];
-        ary.push(obj);
+  for(var i = 0; i < results.length; i++) {
+    if(results[i] != null) {
+      var obj = {};
+      try {
+        obj[assertions[i]] = Number(results[i]);
+      } catch(err) {
+        pt.lib.log.error(err);
+        pt.lib.log.warn("combine():  Could not convert permission string to a number.  Using default permission instead.");
+        obj[assertions[i]] = pt.defaultPermission;
       }
+      ary.push(obj);
     }
   }
+
   return ary;
 }
 
@@ -191,6 +289,15 @@ var buildAssertion = function(pt, scopeModel, scopeId, entityModel, entityId, pe
   return assertion;  
 }
 
+/**
+ * Create an assertion key given each piece of information.
+ * @param {Object} pt is the policy table instance.
+ * @param {String} scopeModel is the scope model identifier.
+ * @param {String} scopeId is the scope id identifier.
+ * @param {String} entityModel is the entity model identifier.
+ * @param {String} entityId is the entity id identifier.
+ * @return {String} an assertion key string.
+ */
 var buildAssertionKey = function(pt, scopeModel, scopeId, entityModel, entityId) {
   return scopeModel + pt.delimiter + scopeId + pt.delimiter + entityModel + pt.delimiter + entityId;
 }
@@ -205,12 +312,21 @@ var assertionKeyValueToObject = function(pt, assertionKey, assertionValue, resou
         model: assertionElements[2],
         id: assertionElements[3]
       },
-      permissions: assertionValue,
+      //permissions: assertionValue,
       scope: {
         model: assertionElements[0],
         id: assertionElements[1]
       }        
     };
+
+    try {
+      assertionObject.permissions = Number(assertionValue);
+    } catch(err) {
+      pt.lib.log.error(err);
+      pt.lib.log.warn("assertionKeyValueToObject():  Could not convert permission string to a number.  Using default permission instead.");
+      assertionObject.permissions = pt.defaultPermission;
+    }
+
     if(resource) {
       assertionObject.correlation = getPermissionCorrelation(pt, assertionObject, resource);
     }
@@ -221,27 +337,17 @@ var assertionKeyValueToObject = function(pt, assertionKey, assertionValue, resou
   return assertionObject;
 }
 
-
-var getMostPermissiveAssertion = function(pt, assertions, resource, cb) {
-  var pt = this;
-  var mpa = undefined;
-  for(var key in assertions) {
-    if(assertions.hasOwnProperty(key)) {
-      var assertion = assertionKeyValueToObject(pt, key, assertions[key], resource);
-      if(mpa == undefined 
-          || mpa.correlation < assertion.correlation 
-          || (mpa.correlation == assertion.correlation 
-          && mpa.permissions < assertion.permissions) ) {
-        
-        mpa = assertion;
-      }
-    }
-  }
-
-  cb(undefined, mpa);
-}
-
-
+/**
+ * Create an assertion describing a specific resource.  
+ * This will not have the permission value, but will 
+ * have the scope and entity.
+ * @param {Object} pt is the policy table instance.
+ * @param {String} scopeModel is the scope model identifier.
+ * @param {String} scopeId is the scope id identifier.
+ * @param {String} entityModel is the entity model identifier.
+ * @param {String} entityId is the entity id identifier.
+ * @return {Object} the resource object.
+ */
 var buildResourceObject = function(pt, scopeModel, scopeId, entityModel, entityId) {
   var resource = {
     entity: {
@@ -257,7 +363,8 @@ var buildResourceObject = function(pt, scopeModel, scopeId, entityModel, entityI
   return resource
 }
 
-var buildAssertionObject = function(pt, scopeModel, scopeId, entityModel, entityId, permissions, resource, correlation) {
+
+var buildAssertionObject = function(pt, scopeModel, scopeId, entityModel, entityId, permissions, correlation, resource) {
   var assertion = {
     correlation: correlation,
     entity: {
@@ -324,29 +431,23 @@ var getPermissionCorrelation = function(pt, assertion, resource) {
 }
 
 var getAssertion = function(pt, resource, cb) {
-  var assertions = getRelatedAssertions(pt, resource);
-  //pt.lib.log.trace("Query for possible assertions: %s", assertions);
+  var assertions = getRelatedAssertions(pt, resource),  
+      mpa = pt.defaultAssertionObject;
+
   pt.lib.ptda.findItemsById(undefined, assertions, function(err, results) {
     if(err) {
-      cb(err);
-    } else if(results == undefined) {
-      cb();
+      cb(err, mpa);
     } else {
-      var mpa = undefined;
-      for(var i = assertions.length-1; i >=0; i--) {
-      //for(var i = 0; i < assertions.length; i++) {
-        if(results[i] != null) {
-          //pt.lib.log.trace("Found related assertion: { \"%s\": %s }", assertions[i], results[i]);
-          var assertion = assertionKeyValueToObject(pt, assertions[i], results[i], resource);
-          //pt.lib.log.trace("Related assertion: %s", assertion);
-          if(mpa == undefined 
-              || mpa.correlation < assertion.correlation 
-              || (mpa.correlation == assertion.correlation 
-              && mpa.permissions < assertion.permissions) ) {
-            mpa = assertion;
-            //pt.lib.log.trace("Changed most permissiable assertion: %s", JSON.stringify(mpa));
-          } else {
-            //pt.lib.log.trace("Unchanged most permissiable assertion: \n%s\nvs.\n%s", JSON.stringify(assertion), JSON.stringify(mpa));
+      if(results != undefined) {
+        for(var i = assertions.length-1; i >=0; i--) {
+          if(results[i] != null) {
+            var assertion = assertionKeyValueToObject(pt, assertions[i], results[i], resource);
+            if(mpa == undefined 
+                || mpa.correlation < assertion.correlation 
+                || (mpa.correlation == assertion.correlation 
+                && mpa.permissions < assertion.permissions) ) {
+              mpa = assertion;
+            }
           }
         }
       }
@@ -355,16 +456,13 @@ var getAssertion = function(pt, resource, cb) {
   });
 }
 
-var createPermissionObject = function(assertions, queryResults, cb) {
-  var obj = {};
-  for(var i = assertions.length-1; i >=0; i--) {
-    if(queryResults[i] != null) {
-      obj[assertions[i]]= queryResults[i];
-    }
-  }
-  cb(undefined, obj);
-}
-
+/**
+ * Get all possible permutations of assertions that 
+ * could affect access to a specified resource.  
+ * @param {Object} pt is the policy table instance.
+ * @param {Object} resource is an resource assertion object.
+ * @return {[type]}
+ */
 var getRelatedAssertions = function(pt, resource) {
   var possibleScopeModels = [ pt.operators.wildcard ];
   if(possibleScopeModels[0] !== resource.scope.model) {
@@ -392,7 +490,8 @@ var getRelatedAssertions = function(pt, resource) {
       for(var entityModelCounter = possibleEntityModel.length-1; entityModelCounter >= 0; entityModelCounter--) {
         for(var entityIdCounter = possibleEntityId.length-1; entityIdCounter >= 0; entityIdCounter--) {
 
-          assertions.push(pt.buildAssertionKey(
+          assertions.push(buildAssertionKey(
+            pt,
             possibleScopeModels[scopeModelCounter],
             possibleScopeIds[scopeIdCounter],
             possibleEntityModel[entityModelCounter],
@@ -420,3 +519,26 @@ exports = PermissionTable;
  * ******************** Documentation Stubs
  * ************************************************** */
  
+ /**
+ * 
+ *
+ * @callback databaseCallback
+ * @param {object|undefined} error describes the error 
+ * that occurred.
+ * @param {array|undefined} responses is a list of 
+ * responses from the database to describe whether or 
+ * not each assertion was inserted into the database 
+ * successfully.
+ */
+
+/**
+ * 
+ *
+ * @callback databaseCallback
+ * @param {object|undefined} error describes the error 
+ * that occurred.
+ * @param {array|undefined} responses is a list of 
+ * responses from the database to describe whether or 
+ * not each assertion was inserted into the database 
+ * successfully.
+ */

@@ -22,12 +22,31 @@ api.route('/', function(req, res, next) {
 
 app.use('/api/:version/', api);
 
-defense.canRead({}, "User", undefined, function(err, isAllowed) {
-  if(err) {
-    console.log(err);
-  }
+defense.setup(function(err) {
+  if(err) { console.log(err); }
 
-  console.log("Is Allowed: " + isAllowed);
+  defense.canRead({ _id: "1" }, "user", [ {_id:"123"}, {_id:"321"}, {_id:"1"}, {_id:"2"}, {_id:"3"}, {_id:"4"}, {_id:"5"}, {_id:"6"} ], function(err, isAllowed) {
+    if(err) { console.log(err); }
+    console.log("Is Allowed: " + isAllowed);
+  });
+
+  defense.canRead({ _id: "1" }, "user", [ "123", "321" ], function(err, isAllowed) {
+    if(err) { console.log(err); }
+
+    console.log("Is Allowed: " + isAllowed);
+  });
+
+  defense.canRead({ _id: "1" }, "user", "321" , function(err, isAllowed) {
+    if(err) { console.log(err); }
+
+    console.log("Is Allowed: " + isAllowed);
+  });
+
+  defense.canRead({ _id: "1" }, "user", {_id:"321"} , function(err, isAllowed) {
+    if(err) { console.log(err); }
+
+    console.log("Is Allowed: " + isAllowed);
+  });
 });
 
 
