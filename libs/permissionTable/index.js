@@ -22,6 +22,15 @@ var PermissionTable = function(defense) {
     wildcard: "*",
     owner: "@"
   };
+  this.identifiers = {
+    "default": {
+      id: "_id"
+    },
+    user: {
+      model: "user",
+      id: "_id"
+    }
+  }
   this.defaultPermission = this.n;
   //this.defaultAssertion = buildAssertion(this, this.operators.wildcard, this.operators.wildcard, this.operators.wildcard, this.operators.wildcard, this.defaultPermission);
   this.defaultAssertionObject = buildAssertionObject(this, this.operators.wildcard, this.operators.wildcard, this.operators.wildcard, this.operators.wildcard, this.defaultPermission, 0);
@@ -131,7 +140,54 @@ PermissionTable.prototype.buildAndGet = function(scopeModel, scopeId, entityMode
   this.get(buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission), cb);
 }
 
-PermissionTable.prototype.can = function(scopeModel, scopeId, entityModel, entityId, permission, cb) {
+PermissionTable.prototype.can = function(user, model, resources, permissions, cb) {
+  var pt = this;
+
+  // Check required parameters, without them calling this method would be useless.
+  if( checkRequiredParameter(pt, "can", "callback", cb) != true) { return; }
+  if( checkRequiredParameter(pt, "can", "user", user, cb) != true) { return; }
+  if( checkRequiredParameter(pt, "can", "model", model, cb) != true) { return; }
+
+  if( ! resources) {
+    // No resources to check against, so permission granted.
+    return cb(undefined, true);
+  } else if( ! _.isArray(resources)) {
+    // make sure resources is an array.
+    resources = [ resources ];
+  } else if( resources.length == 0) {
+    // No resources to check against, so permission granted.
+    return cb(undefined, true);
+  }
+
+  var userId = (_.isObject(user)) ? user[pt.identifiers.user.id] : user;
+
+  var tasks = [];
+  if(_.isObject(resources[0])) {
+    var resourceId = (pt.identifiers[model] && pt.identifiers[model].id) ? pt.identifiers[model].id : pt.identifiers.default.id;
+    
+    // If a list of objects, pull out just the IDs.
+    for(var i = 0; i < resources.length; i++) {
+      tasks.push(createCheckPermissionsMethod(pt, pt.identifiers.user.model, userId, model, resources[i][resourceId], permissions, true));
+    }
+  } else {
+    for(var i = 0; i < resources.length; i++) {
+      tasks.push(createCheckPermissionsMethod(pt, pt.identifiers.user.model, userId, model, resources[i], permissions, true));
+    }
+  }
+
+  // TODO: Is series better than parallel for this?
+  async.series(tasks, function(err, results) {
+    if(err === true) {
+      cb(undefined, false);
+    } else if(err) {
+      cb(err, false);
+    } else {
+      cb(undefined, true);
+    }
+  });
+}
+
+PermissionTable.prototype.checkPermissions = function(scopeModel, scopeId, entityModel, entityId, permission, cb) {
   var pt = this,
     resource = buildResourceObject(pt, scopeModel, scopeId, entityModel, entityId);
 
@@ -146,23 +202,6 @@ PermissionTable.prototype.can = function(scopeModel, scopeId, entityModel, entit
       cb(undefined, (assertion.permissions & permission) == permission);
     }
   });
-}
-
-PermissionTable.prototype.createCanMethod = function(scopeModel, scopeId, entityModel, entityId, permission, errorOnPermissionDenied) {
-  var pt = this;
-  return function(cb) {
-    pt.can(scopeModel, scopeId, entityModel, entityId, permission, function(err, isAllowed) {
-      if(err) {
-        cb(err);
-      } else {
-        if(errorOnPermissionDenied && ! isAllowed) {
-          cb(new Error("Permission denied to one or more items."));
-        } else {
-          cb(undefined, isAllowed);
-        }
-      }
-    });
-  };
 }
 
 PermissionTable.prototype.permissionToAbbreviatedString = function(permission) {
@@ -194,6 +233,10 @@ PermissionTable.prototype.permissionToString = function(permission) {
   }
 }
 
+/*PermissionTable.prototype.assertionKeyValueToObject = function(key, value, resource) {
+  return assertionKeyValueToObject(this, key, value, resource);
+}*/
+
 PermissionTable.prototype.rwd = 7;
 PermissionTable.prototype.rw  = 6;
 PermissionTable.prototype.rd  = 5;
@@ -213,6 +256,51 @@ PermissionTable.prototype.n   = 0;
 /* ************************************************** *
  * ******************** Assertion Key/Value
  * ************************************************** */
+
+
+var createCheckPermissionsMethod = function(pt, scopeModel, scopeId, entityModel, entityId, permission, errorOnPermissionDenied) {
+  return function(cb) {
+    pt.checkPermissions(scopeModel, scopeId, entityModel, entityId, permission, function(err, isAllowed) {
+      if(err) {
+        cb(err);
+      } else {
+        if(errorOnPermissionDenied && ! isAllowed) {
+          cb(true);
+        } else {
+          cb(undefined, isAllowed);
+        }
+      }
+    });
+  };
+}
+
+/**
+ * Checks if the specified parameter is defined, 
+ * generating an error if it is not.  The error is 
+ * returned to the callback method, if provided, and 
+ * logged as a fatal error.
+ * @param {Object} defense is the module's instance. 
+ * @param {String} method is the method's name who was 
+ * expecting the parameter to be defined.
+ * @param {String} name is the name of the parameter.
+ * @param {*} parameter is the parameter's value.
+ * @param {canPerformActionCallback} cb is a callback 
+ * method.
+ * @return {Boolean} true is returned if the parameter 
+ * is defined, false otherwise.
+ */
+var checkRequiredParameter = function(pt, method, name, parameter, cb) {
+  if( ! parameter) {
+    var error = new Error('The parameter "'+name+'" is a required parameter for the "defense.'+method+'()" method.');
+    this.log.fatal(error);
+    if(cb) {
+      cb(error);
+    }
+    return false;
+  } else {
+    return true;
+  }
+}
 
 var permissionAllowedString = function(isAllowed) {
   return (isAllowed) ? "granted" : "denied";
@@ -433,7 +521,6 @@ var getPermissionCorrelation = function(pt, assertion, resource) {
 var getAssertion = function(pt, resource, cb) {
   var assertions = getRelatedAssertions(pt, resource),  
       mpa = pt.defaultAssertionObject;
-
   pt.lib.ptda.findItemsById(undefined, assertions, function(err, results) {
     if(err) {
       cb(err, mpa);

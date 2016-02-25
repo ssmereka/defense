@@ -42,7 +42,7 @@ defense.setup(function(err) {
     console.log("Is Allowed: " + isAllowed);
   });
 
-  defense.canRead({ _id: "1" }, "user", {_id:"321"} , function(err, isAllowed) {
+  defense.canWrite({ _id: "1" }, "user", {_id:"321"} , function(err, isAllowed) {
     if(err) { console.log(err); }
 
     console.log("Is Allowed: " + isAllowed);

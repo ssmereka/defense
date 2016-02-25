@@ -229,42 +229,6 @@ Defense.prototype.inherit = function(proto) {
  * ******************** Public API
  * ************************************************** */
 
-Defense.prototype.setup = function(cb) {
-  var defense = this;
-  var assertions = [];
-  assertions.push(defense.pt.build("user", "1", "user", "*", defense.pt.rw));
-  assertions.push(defense.pt.build("user", "*", "user", "*", defense.pt.r));
-  assertions.push(defense.pt.build("user", "1", "user", "123", defense.pt.n));
-  assertions.push(defense.pt.build("user", "*", "user", "321", defense.pt.rw));
-
-  defense.pt.add(assertions, function(err, result) {
-    if(err) { defense.log.error(err); }
-
-    defense.pt.get(assertions, function(err, items) {
-      if(err) { defense.log.error(err); }
-      
-      defense.pt.remove(assertions, function(err, items) {
-        if(err) { defense.log.error(err); }
-
-        defense.pt.add(assertions, function(err, result) {
-          if(err) { defense.log.error(err); }
-
-          defense.pt.can("user", "*", "user", "123", defense.pt.r, function(err, isAllowed) {
-            if(err) { defense.log.error(err); }
-          });
-
-          defense.pt.can("user", "*", "user", "123", defense.pt.rwd, function(err, isAllowed) {
-            if(err) { defense.log.error(err); }
-            defense.log.info("Setup Complete");
-            cb();
-          });
-        });
-      });
-    });
-  });
-}
-
-
 /**
  * Check if a user has permission to delete a given 
  * resource or group of resources. If the user is 
@@ -287,17 +251,39 @@ Defense.prototype.setup = function(cb) {
  * method.
  */
 Defense.prototype.canDelete = function(user, model, resource, cb) {
-  var defense = this,
-      isAllowed = false;
+  this.pt.can(user, model, resources, this.pt.d, cb);
+};
 
-  // Check required parameters, without them calling this method would be useless.
-  if( checkRequiredParameter(defense, "canDelete", "callback", cb) != true) { return; }
-  if( checkRequiredParameter(defense, "canDelete", "user", user, cb) != true) { return; }
-  if( checkRequiredParameter(defense, "canDelete", "model", model, cb) != true) { return; }
+/**
+ * Check if a user has permissions to update or create 
+ * a given resource or group of resources. If the user 
+ * is denied access to a single item in a group of 
+ * resources a value of denied will be returned. When 
+ * checking permissions for objects each attribute will 
+ * be evaluated for user permissions. If a single 
+ * attribute fails the permission test, a result of 
+ * denied will be returned. Permission to an entire 
+ * database record type can be evaluated by passing a 
+ * value of undefined as the Resource value.
+ * 
+ * @param {object} user is a user database record, 
+ * typically pulled from the current session.
+ * @param {string} model is the type of database record 
+ * to check permissions against. Should be the same 
+ * type as the Resource provided.
+ * @param {array|object|string|undefined} resource is a 
+ * list of database records, a single database record, 
+ * a single database record's unique identifier, or 
+ * undefined respectively.
+ * @param {canPerformActionCallback} cb is a callback 
+ * method.
+ */
+Defense.prototype.canWrite = function(user, model, resources, cb) {
+  this.pt.can(user, model, resources, this.pt.w, cb);
+};
 
-  // TODO: Determine if the user can delete the specified resource.
-
-  cb(undefined, isAllowed);
+Defense.prototype.canWriteDelete = function(user, model, resources, cb) {
+  this.pt.can(user, model, resources, this.pt.wd, cb);
 };
 
 /**
@@ -325,79 +311,23 @@ Defense.prototype.canDelete = function(user, model, resource, cb) {
  * method.
  */
 Defense.prototype.canRead = function(user, model, resources, cb) {
-  var defense = this;
-
-  // Check required parameters, without them calling this method would be useless.
-  if( checkRequiredParameter(defense, "canRead", "callback", cb) != true) { return; }
-  if( checkRequiredParameter(defense, "canRead", "user", user, cb) != true) { return; }
-  if( checkRequiredParameter(defense, "canRead", "model", model, cb) != true) { return; }
-
-  if( ! resources) {
-    return cb(undefined, true);
-  } else if( ! _.isArray(resources)) {
-    resources = [ resources ];
-  } else if( resources.length == 0) {
-    return cb(undefined, true);
-  }
-
-  var tasks = [];
-
-  if(_.isObject(resources[0])) {
-    for(var i = 0; i < resources.length; i++) {
-      tasks.push(defense.pt.createCanMethod(defense.config.userModel, user[defense.config.defaultId], model, resources[i][defense.config.defaultId], defense.pt.r, true));
-    }
-  } else {
-    for(var i = 0; i < resources.length; i++) {
-      tasks.push(defense.pt.createCanMethod(defense.config.userModel, user[defense.config.defaultId], model, resources[i], defense.pt.r, true));
-    }
-  }
-
-  // TODO: Is series better than parallel for this?
-  async.series(tasks, function(err, results) {
-    if(err) {
-      cb(err, false);
-    } else {
-      cb(undefined, true);
-    }
-  });
+  this.pt.can(user, model, resources, this.pt.r, cb);
 };
 
-/**
- * Check if a user has permissions to update or create 
- * a given resource or group of resources. If the user 
- * is denied access to a single item in a group of 
- * resources a value of denied will be returned. When 
- * checking permissions for objects each attribute will 
- * be evaluated for user permissions. If a single 
- * attribute fails the permission test, a result of 
- * denied will be returned. Permission to an entire 
- * database record type can be evaluated by passing a 
- * value of undefined as the Resource value.
- * 
- * @param {object} user is a user database record, 
- * typically pulled from the current session.
- * @param {string} model is the type of database record 
- * to check permissions against. Should be the same 
- * type as the Resource provided.
- * @param {array|object|string|undefined} resource is a 
- * list of database records, a single database record, 
- * a single database record's unique identifier, or 
- * undefined respectively.
- * @param {canPerformActionCallback} cb is a callback 
- * method.
- */
-Defense.prototype.canWrite = function(user, model, resource, cb) {
-  var defense = this,
-      isAllowed = false;
+Defense.prototype.canReadWrite = function(user, model, resources, cb) {
+  this.pt.can(user, model, resources, this.pt.rw, cb);
+};
 
-  // Check required parameters, without them calling this method would be useless.
-  if( checkRequiredParameter(defense, "canWrite", "callback", cb) != true) { return; }
-  if( checkRequiredParameter(defense, "canWrite", "user", user, cb) != true) { return; }
-  if( checkRequiredParameter(defense, "canWrite", "model", model, cb) != true) { return; }
+Defense.prototype.canReadDelete = function(user, model, resources, cb) {
+  this.pt.can(user, model, resources, this.pt.rd, cb);
+};
 
-  // TODO: Determine if the user can write the specified resource.
+Defense.prototype.canReadWriteDelete = function(user, model, resources, cb) {
+  this.pt.can(user, model, resources, this.pt.rwd, cb);
+};
 
-  cb(undefined, isAllowed);
+Defense.prototype.can = function(user, model, resources, permissions, cb) {
+  this.pt.can(user, model, resources, permissions, cb);
 };
 
 /**
