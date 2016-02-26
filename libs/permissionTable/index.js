@@ -140,7 +140,7 @@ PermissionTable.prototype.buildAndGet = function(scopeModel, scopeId, entityMode
   this.get(buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission), cb);
 }
 
-PermissionTable.prototype.can = function(user, model, resources, permissions, cb) {
+PermissionTable.prototype.can = function(user, model, resources, permissions, stopOnPermissionDenied, cb) {
   var pt = this;
 
   // Check required parameters, without them calling this method would be useless.
@@ -150,13 +150,13 @@ PermissionTable.prototype.can = function(user, model, resources, permissions, cb
 
   if( ! resources) {
     // No resources to check against, so permission granted.
-    return cb(undefined, true);
+    return cb(undefined, true, []);
   } else if( ! _.isArray(resources)) {
     // make sure resources is an array.
     resources = [ resources ];
   } else if( resources.length == 0) {
     // No resources to check against, so permission granted.
-    return cb(undefined, true);
+    return cb(undefined, true, []);
   }
 
   var userId = (_.isObject(user)) ? user[pt.identifiers.user.id] : user;
@@ -167,22 +167,22 @@ PermissionTable.prototype.can = function(user, model, resources, permissions, cb
     
     // If a list of objects, pull out just the IDs.
     for(var i = 0; i < resources.length; i++) {
-      tasks.push(createCheckPermissionsMethod(pt, pt.identifiers.user.model, userId, model, resources[i][resourceId], permissions, true));
+      tasks.push(createCheckPermissionsMethod(pt, pt.identifiers.user.model, userId, model, resources[i][resourceId], permissions, stopOnPermissionDenied));
     }
   } else {
     for(var i = 0; i < resources.length; i++) {
-      tasks.push(createCheckPermissionsMethod(pt, pt.identifiers.user.model, userId, model, resources[i], permissions, true));
+      tasks.push(createCheckPermissionsMethod(pt, pt.identifiers.user.model, userId, model, resources[i], permissions, stopOnPermissionDenied));
     }
   }
 
   // TODO: Is series better than parallel for this?
   async.series(tasks, function(err, results) {
     if(err === true) {
-      cb(undefined, false);
+      cb(undefined, false, results);
     } else if(err) {
-      cb(err, false);
+      cb(err, false, results);
     } else {
-      cb(undefined, true);
+      cb(undefined, true, results);
     }
   });
 }

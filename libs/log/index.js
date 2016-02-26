@@ -25,7 +25,7 @@ Log.prototype.createLogger = function(options) {
         serializers: bunyan.stdSerializers,
         streams: [
           {
-            level: 'trace',
+            level: 'info',
             //type: 'raw',
             stream: new PrettyStream() // prettyStdOut //process.stdout//new PrettySteam()
           }

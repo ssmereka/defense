@@ -1,4 +1,4 @@
-module.exports = function(cramit) {
+module.exports = function(lib) {
 
 
   /* ************************************************** *
@@ -21,19 +21,19 @@ module.exports = function(cramit) {
    * parent Database Adapter class.
    */
   function MongooseAdapter() {
-    this.idAttributeName = cramit.config.database.idAttributeName || '_id';
+    this.idAttributeName = lib.config.database.idAttributeName || '_id';
 
-    if( ! cramit.config.database.instance) {
+    if( ! lib.config.database.instance) {
       this.mongoose = require('mongoose');
     } else {
-      this.mongoose = cramit.config.database.instance;
+      this.mongoose = lib.config.database.instance;
     }
     
-    DatabaseAdapter.call(this, cramit.config, cramit.log);
+    DatabaseAdapter.call(this, lib.config, lib.log);
   }
 
   // Inherits the DatabaseAdapter parent class's methods and variables.
-  MongooseAdapter.prototype = cramit.inherit(DatabaseAdapter.prototype);
+  MongooseAdapter.prototype = lib.inherit(DatabaseAdapter.prototype);
 
 
   /* ************************************************** *
@@ -73,17 +73,17 @@ module.exports = function(cramit) {
       transaction = {};
 
     if( ! adapter.mongoose) {
-      cb(cramit.error.build('MongooseAdapter.startTransaction():  Database "Mongoose" was never initalized.', 500));
+      cb(lib.error.build('MongooseAdapter.startTransaction():  Database "Mongoose" was never initalized.', 500));
     } else if( ! adapter.mongoose.connection) {
-      cb(cramit.error.build('MongooseAdapter.startTransaction():  Mongoose connection was never initalized.', 500));
+      cb(lib.error.build('MongooseAdapter.startTransaction():  Mongoose connection was never initalized.', 500));
     } else if(adapter.mongoose.connection.readyState !== 1){
       //console.log(adapter.mongoose.connection.readyState);
       //console.log("MongooseAdapter.startTransaction():  Mongoose not connected.");
       
       // Make sure the connection URI is specified.
-      if( ! cramit.config.database.connectionUri) {
-        cramit.config.database.connectionUri = 'mongodb://localhost/cramit';
-        cramit.log.warn('Database not connected and the Mongoose connection URI is not specified, defaulting to %s', cramit.config.database.connectionUri)
+      if( ! lib.config.database.connectionUri) {
+        lib.config.database.connectionUri = 'mongodb://localhost/lib';
+        lib.log.warn('Database not connected and the Mongoose connection URI is not specified, defaulting to %s', lib.config.database.connectionUri)
       }
 
       // Handle when mongoose connects and/or errors.
@@ -91,7 +91,7 @@ module.exports = function(cramit) {
       adapter.mongoose.connection.once('connected', adapter.createMongooseTransactionEventMethod(transaction, cb)); 
       
       // Start connecting to the database.
-      adapter.mongoose.connect(cramit.config.database.connectionUri || 'mongodb://localhost/cramit');
+      adapter.mongoose.connect(lib.config.database.connectionUri || 'mongodb://localhost/lib');
     } else {
       cb(undefined, transaction);
     }
@@ -115,12 +115,12 @@ module.exports = function(cramit) {
 
     // Make sure the callback is defined and displays errors
     if( ! cb) {
-      cb = function(err) { if(err) { cramit.log.error(err); } };
+      cb = function(err) { if(err) { lib.log.error(err); } };
     }
 
     // The schema needs to be defined.
     if( ! schemaName) {
-      return cb(cramit.error.build('MongooseAdapter.addItem():  Cannot add item to an undefined schema.'));
+      return cb(lib.error.build('MongooseAdapter.addItem():  Cannot add item to an undefined schema.'));
     }
 
     // The item should always be an object.
@@ -133,7 +133,7 @@ module.exports = function(cramit) {
       if(err) {
         cb(err);
       } else {
-        cramit.log.trace("Added %s with id.", schemaName, newItem[adapter.idAttributeName]);
+        lib.log.trace("Added %s with id.", schemaName, newItem[adapter.idAttributeName]);
         cb(undefined, newItem);
       }
     });
@@ -156,12 +156,12 @@ module.exports = function(cramit) {
 
     // Make sure the callback is defined and displays errors
     if( ! cb) {
-      cb = function(err) { if(err) { cramit.log.error(err); } };
+      cb = function(err) { if(err) { lib.log.error(err); } };
     }
 
     // The schema needs to be defined.
     if( ! schemaName) {
-      return cb(cramit.error.build('MongooseAdapter.addItems():  Cannot add items to an undefined schema.'));
+      return cb(lib.error.build('MongooseAdapter.addItems():  Cannot add items to an undefined schema.'));
     }
 
     // Make sure the items parameter is an array.
@@ -193,17 +193,17 @@ module.exports = function(cramit) {
 
     // Make sure the callback is defined and displays errors
     if( ! cb) {
-      cb = function(err) { if(err) { cramit.log.error(err); } };
+      cb = function(err) { if(err) { lib.log.error(err); } };
     }
 
     // The schema needs to be defined.
     if( ! schemaName) {
-      return cb(cramit.error.build('MongooseAdapter.findById():  Cannot find an item from an undefined schema.'));
+      return cb(lib.error.build('MongooseAdapter.findById():  Cannot find an item from an undefined schema.'));
     }
 
     // The ID should always be a valid string.
     if( ! id || ! _.isString(id)) {
-      return cb(cramit.error.build('MongooseAdapter.findById():  Cannot find an item with an invalid ID.'));
+      return cb(lib.error.build('MongooseAdapter.findById():  Cannot find an item with an invalid ID.'));
     }
 
     var Schema = adapter.mongoose.model(schemaName),
@@ -215,13 +215,41 @@ module.exports = function(cramit) {
       if (err) {
         cb(err);
       } else if (data === undefined || data === null) {
-        cramit.log.trace("Schema %s with item id %s was not found.", schemaName, id);
+        lib.log.trace("Schema %s with item id %s was not found.", schemaName, id);
         cb();
       } else {
         cb(undefined, data);
       }
     });
   }
+
+  MongooseAdapter.prototype.findItem = function(schemaName, query, cb) {
+    var adapter = this;
+
+    // Make sure the callback is defined and displays errors
+    if( ! cb) {
+      cb = function(err) { if(err) { lib.log.error(err); } };
+    }
+
+    // The schema needs to be defined.
+    if( ! schemaName) {
+      return cb(lib.error.build('MongooseAdapter.findItems():  Cannot find items using an undefined schema.'));
+    }
+
+    var Schema = adapter.mongoose.model(schemaName);
+
+    Schema.findOne(query, function (err, data) {
+      if (err) {
+        cb(err);
+      } else if (data === undefined || data === null) {
+        lib.log.trace("Schema %s with item query %s was not found.", schemaName, JSON.stringify(query));
+        cb();
+      } else {
+        cb(undefined, data);
+      }
+    });
+  }
+
 
   /**
    * Find an item by ID in a list of items.
@@ -239,17 +267,17 @@ module.exports = function(cramit) {
 
     // Make sure the callback is defined and displays errors
     if( ! cb) {
-      cb = function(err) { if(err) { cramit.log.error(err); } };
+      cb = function(err) { if(err) { lib.log.error(err); } };
     }
 
     // The schema needs to be defined.
     if( ! schemaName) {
-      return cb(cramit.error.build('MongooseAdapter.findById():  Cannot find an item from an undefined schema.'));
+      return cb(lib.error.build('MongooseAdapter.findById():  Cannot find an item from an undefined schema.'));
     }
 
     // The ID should always be a valid string.
     if( ! id || ! _.isString(id)) {
-      return cb(cramit.error.build('MongooseAdapter.findById():  Cannot find an item with an invalid ID.'));
+      return cb(lib.error.build('MongooseAdapter.findById():  Cannot find an item with an invalid ID.'));
     }
 
     var Schema = adapter.mongoose.model(schemaName),
@@ -261,7 +289,7 @@ module.exports = function(cramit) {
       if (err) {
         cb(err);
       } else if (data === undefined || data === null) {
-        cramit.log.trace("Schema %s with item id %s was not found.", schemaName, id);
+        lib.log.trace("Schema %s with item id %s was not found.", schemaName, id);
         cb();
       } else {
         cb(undefined, data);
@@ -286,21 +314,21 @@ module.exports = function(cramit) {
 
     // Make sure the callback is defined and displays errors
     if( ! cb) {
-      cb = function(err) { if(err) { cramit.log.error(err); } };
+      cb = function(err) { if(err) { lib.log.error(err); } };
     }
 
     adapter.findItemById(schemaName, id, function(err, item){
       if(err) {
         cb(err);
       } else if( ! item) {
-        cramit.log.trace("Schema %s with item id %s already removed.", schemaName, id);
+        lib.log.trace("Schema %s with item id %s already removed.", schemaName, id);
         cb();
       } else {
         item.remove(function(err, removedItem) {
           if(err) {
             cb(err);
           } else {
-            cramit.log.trace("Schema %s with item id %s removed.", schemaName, item[adapter.idAttributeName]);
+            lib.log.trace("Schema %s with item id %s removed.", schemaName, item[adapter.idAttributeName]);
             cb(undefined, removedItem);
           }
         });
@@ -326,12 +354,12 @@ module.exports = function(cramit) {
 
     // Make sure the callback is defined and displays errors
     if( ! cb) {
-      cb = function(err) { if(err) { cramit.log.error(err); } };
+      cb = function(err) { if(err) { lib.log.error(err); } };
     }
 
     // The schema needs to be defined.
     if( ! schemaName) {
-      return cb(cramit.error.build('MongooseAdapter.removeItemsById():  Cannot remove items from an undefined schema.'));
+      return cb(lib.error.build('MongooseAdapter.removeItemsById():  Cannot remove items from an undefined schema.'));
     }
 
     // Make sure the ids parameter is an array.
@@ -362,7 +390,7 @@ module.exports = function(cramit) {
 
     // Make sure the callback is defined and displays errors
     if( ! cb) {
-      cb = function(err) { if(err) { cramit.log.error(err); } };
+      cb = function(err) { if(err) { lib.log.error(err); } };
     }
 
     // The schema needs to be defined.
@@ -408,12 +436,12 @@ module.exports = function(cramit) {
 
     // Make sure the callback is defined and displays errors
     if( ! cb) {
-      cb = function(err) { if(err) { cramit.log.error(err); } };
+      cb = function(err) { if(err) { lib.log.error(err); } };
     }
 
     // The schema needs to be defined.
     if( ! schemaName) {
-      return cb(cramit.error.build('MongooseAdapter.upsertItem():  Cannot upsert item to an undefined schema.'));
+      return cb(lib.error.build('MongooseAdapter.upsertItem():  Cannot upsert item to an undefined schema.'));
     }
 
     // The item should always be an object.
@@ -454,12 +482,12 @@ module.exports = function(cramit) {
 
     // Make sure the callback is defined and displays errors
     if( ! cb) {
-      cb = function(err) { if(err) { cramit.log.error(err); } };
+      cb = function(err) { if(err) { lib.log.error(err); } };
     }
 
     // The schema needs to be defined.
     if( ! schemaName) {
-      return cb(cramit.error.build('MongooseAdapter.upsertItems():  Cannot upsert items to an undefined schema.'));
+      return cb(lib.error.build('MongooseAdapter.upsertItems():  Cannot upsert items to an undefined schema.'));
     }
 
     // Make sure the items parameter is an array.

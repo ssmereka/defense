@@ -9,13 +9,15 @@ var async = require('async'),
   _ = require('lodash');
 
 // Local paths and folders.
-var databaseAdaptersFolder = path.resolve(__dirname, '.'+path.sep+'databaseAdapters') + path.sep,
+var attributePermissionFolder = path.resolve(__dirname, '.'+path.sep+'attributePermission') + path.sep,
+    databaseAdaptersFolder = path.resolve(__dirname, '.'+path.sep+'databaseAdapters') + path.sep,
     permissionTableFolder = path.resolve(__dirname, '.'+path.sep+'permissionTable') + path.sep
     logFolder = path.resolve(__dirname, '.'+path.sep+'log') + path.sep;
 
 // Local Modules.
 var Log = require(logFolder),
-    PermissionTable = require(permissionTableFolder);
+    PermissionTable = require(permissionTableFolder),
+    AttributePermission = require(attributePermissionFolder);
 
 // Default configuration object.
 var defaultConfig = {
@@ -55,7 +57,7 @@ var Defense = function(options, log, error) {
 
   // Auto instantiate the module when it is required.
   if(! (this instanceof Defense)) {
-    return new Defense(options);
+    return new Defense(options, log, error);
   } else {
 
     this.setConfig(options);
@@ -65,6 +67,12 @@ var Defense = function(options, log, error) {
     return this;
   }
 };
+
+module.exports = new Defense();
+var d = require('defense');
+
+module.exports = Defense;
+var d = require('defense')();
 
 
 /* ************************************************** *
@@ -199,10 +207,12 @@ Defense.prototype.setDatabaseAdapters = function() {
   var defense = this;
 
   defense.ptda = getDatabaseAdapter(defense, defense.config.permissionTableDatabase.type);
+  defense.apda = getDatabaseAdapter(defense, defense.config.attributePermissionDatabase.type);
   
 
   if( ! defense.pt) {
-    defense.pt = new PermissionTable(defense);  
+    defense.pt = new PermissionTable(defense);
+    defense.ap = new AttributePermission(defense);
   } else {
     defense.pt.setConfig(defense.config);
   }
@@ -251,7 +261,7 @@ Defense.prototype.inherit = function(proto) {
  * method.
  */
 Defense.prototype.canDelete = function(user, model, resource, cb) {
-  this.pt.can(user, model, resources, this.pt.d, cb);
+  this.pt.can(user, model, resources, this.pt.d, true, cb);
 };
 
 /**
@@ -279,11 +289,11 @@ Defense.prototype.canDelete = function(user, model, resource, cb) {
  * method.
  */
 Defense.prototype.canWrite = function(user, model, resources, cb) {
-  this.pt.can(user, model, resources, this.pt.w, cb);
+  this.pt.can(user, model, resources, this.pt.w, true, cb);
 };
 
 Defense.prototype.canWriteDelete = function(user, model, resources, cb) {
-  this.pt.can(user, model, resources, this.pt.wd, cb);
+  this.pt.can(user, model, resources, this.pt.wd, true, cb);
 };
 
 /**
@@ -311,23 +321,23 @@ Defense.prototype.canWriteDelete = function(user, model, resources, cb) {
  * method.
  */
 Defense.prototype.canRead = function(user, model, resources, cb) {
-  this.pt.can(user, model, resources, this.pt.r, cb);
+  this.pt.can(user, model, resources, this.pt.r, true, cb);
 };
 
 Defense.prototype.canReadWrite = function(user, model, resources, cb) {
-  this.pt.can(user, model, resources, this.pt.rw, cb);
+  this.pt.can(user, model, resources, this.pt.rw, true, cb);
 };
 
 Defense.prototype.canReadDelete = function(user, model, resources, cb) {
-  this.pt.can(user, model, resources, this.pt.rd, cb);
+  this.pt.can(user, model, resources, this.pt.rd, true, cb);
 };
 
 Defense.prototype.canReadWriteDelete = function(user, model, resources, cb) {
-  this.pt.can(user, model, resources, this.pt.rwd, cb);
+  this.pt.can(user, model, resources, this.pt.rwd, true, cb);
 };
 
 Defense.prototype.can = function(user, model, resources, permissions, cb) {
-  this.pt.can(user, model, resources, permissions, cb);
+  this.pt.can(user, model, resources, permissions, true, cb);
 };
 
 /**
@@ -358,20 +368,41 @@ Defense.prototype.can = function(user, model, resources, permissions, cb) {
  * @param {canPerformActionAndSanitizeCallback} cb is a 
  * callback method.
  */
-Defense.prototype.sanitizeRead = function(user, model, resource, cb) {
+Defense.prototype.sanitizeRead = function(user, model, resources, cb) {
   var defense = this;
 
   // Check required parameters, without them calling this method would be useless.
   if( checkRequiredParameter(defense, "sanitizeRead", "callback", cb) != true) { return; }
-  if( checkRequiredParameter(defense, "sanitizeRead", "user", user, cb) != true) { return; }
-  if( checkRequiredParameter(defense, "sanitizeRead", "model", model, cb) != true) { return; }
-  if( checkRequiredParameter(defense, "sanitizeRead", "resource", resource, cb) != true) { return; }
+
+  this.pt.can(user, model, resources, this.pt.r, false, function(err, isAllowed, results) {
+    if(err) {
+      return cb(err);
+    } 
+
+    var allowedResources = [];
+    if( ! isAllowed) {
+      if( ! _.isArray(resources)) {
+        if(results[0] == false) {
+          return cb();
+        } else {
+          allowedResources = [ resources ];
+        }
+      } else {
+        for(var i = 0; i < results.length; i++) {
+          if(results[i] == true) {
+            allowedResources.push(resources[i]);
+          }
+        }
+      }
+    }
+
+    // TODO: Sanitize the resource objects.
+    cb(undefined, resources);
+  });
 
   // TODO: Determine if the user can read the specified resource.
   
   // TODO: Sanitize the array or object.
-
-  cb(undefined, resource);
 };
 
 /**
@@ -516,8 +547,8 @@ var getDatabaseAdapter = function(defense, databaseType) {
  * ******************** Expose the Public API
  * ************************************************** */
 
-exports = module.exports = Defense;
-exports = Defense;
+module.exports = Defense;
+
 
 
 /* ************************************************** *
