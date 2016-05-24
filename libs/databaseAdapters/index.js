@@ -177,7 +177,7 @@ DatabaseAdapter.prototype.add = function(items, options, cb) {
     if(err) {
       cb(err, { fixtureId: options.fixtureId, transaction: transaction, results: [] });
     } else {
-      database.addItems(options.fixtureId, items, function(err, results) {
+      database.addItems(items, options.fixtureId, function(err, results) {
         if(err) {
           database.failedTransaction(transaction, err, function(transactionError, transaction) {
             if(transactionError) {

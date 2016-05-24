@@ -22,6 +22,20 @@ api.route('/', function(req, res, next) {
 
 app.use('/api/:version/', api);
 
+defense.on('error', function(err) {
+  console.log("ERRRRRRR" + err);
+});
+
+defense.on('fatal', function(err) {
+  console.log("FATAL THING!")
+  console.log(err);
+});
+defense.on('test', function(err) {
+  console.log("test!! Success@!@")
+});
+
+
+/*
 defense.setup(function(err) {
   if(err) { console.log(err); }
 
@@ -48,7 +62,7 @@ defense.setup(function(err) {
     console.log("Is Allowed: " + isAllowed);
   });
 });
-
+*/
 
 
 // Method to connect to database and start the server.

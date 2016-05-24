@@ -30,11 +30,12 @@ var PermissionTable = function(defense) {
       model: "user",
       id: "_id"
     }
-  }
+  };
+
   this.defaultPermission = this.n;
   //this.defaultAssertion = buildAssertion(this, this.operators.wildcard, this.operators.wildcard, this.operators.wildcard, this.operators.wildcard, this.defaultPermission);
   this.defaultAssertionObject = buildAssertionObject(this, this.operators.wildcard, this.operators.wildcard, this.operators.wildcard, this.operators.wildcard, this.defaultPermission, 0);
-}
+};
 
 
 /* ************************************************** *
@@ -52,7 +53,7 @@ var PermissionTable = function(defense) {
  */
 PermissionTable.prototype.build = function(scopeModel, scopeId, entityModel, entityId, permission) {
   return buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission);
-}
+};
 
 /**
  * Add one or more assertions to the database.
@@ -63,7 +64,7 @@ PermissionTable.prototype.build = function(scopeModel, scopeId, entityModel, ent
  */
 PermissionTable.prototype.add = function(assertions, cb) {
   this.lib.ptda.addItems(undefined, assertions, cb);
-}
+};
 
 /**
  * Remove one or more assertions from the database.
@@ -73,7 +74,7 @@ PermissionTable.prototype.add = function(assertions, cb) {
  */
 PermissionTable.prototype.remove = function(assertions, cb) { 
   if( ! assertions) {
-    this.lib.log.warn("PermissionTable.get():  Cannot remove assertions with value of '%s'", assertions)
+    this.lib.log.warn("PermissionTable.remove():  Cannot remove assertions with value of '%s'", assertions)
     return cb(undefined, []);
   }
     
@@ -94,14 +95,14 @@ PermissionTable.prototype.remove = function(assertions, cb) {
     }
     this.lib.ptda.removeItems(undefined, keys, cb);
   }
-}
+};
 
 /**
  * Find one or more assertions in the database using 
  * the assertion's key value.
  * @param {Object} assertions is one or more 
  * assertions or assertion keys.
- * @param {} cb is a callback method.
+ * @param {Function} cb is a callback method.
  */
 PermissionTable.prototype.get = function(assertions, cb) {
   if( ! assertions) {
@@ -126,19 +127,19 @@ PermissionTable.prototype.get = function(assertions, cb) {
     }
     this.lib.ptda.findItemsById(undefined, keys, createCombineMethod(this, keys, cb));
   }
-}
+};
 
 PermissionTable.prototype.buildAndAdd = function(scopeModel, scopeId, entityModel, entityId, permission, cb) {
   this.add(buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission), cb);
-}
+};
 
 PermissionTable.prototype.buildAndRemove = function(scopeModel, scopeId, entityModel, entityId, permission, cb) {
   this.remove(buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission), cb);
-}
+};
 
 PermissionTable.prototype.buildAndGet = function(scopeModel, scopeId, entityModel, entityId, permission, cb) {
   this.get(buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission), cb);
-}
+};
 
 PermissionTable.prototype.can = function(user, model, resources, permissions, stopOnPermissionDenied, cb) {
   var pt = this;
@@ -185,7 +186,7 @@ PermissionTable.prototype.can = function(user, model, resources, permissions, st
       cb(undefined, true, results);
     }
   });
-}
+};
 
 PermissionTable.prototype.checkPermissions = function(scopeModel, scopeId, entityModel, entityId, permission, cb) {
   var pt = this,
@@ -202,7 +203,7 @@ PermissionTable.prototype.checkPermissions = function(scopeModel, scopeId, entit
       cb(undefined, (assertion.permissions & permission) == permission);
     }
   });
-}
+};
 
 PermissionTable.prototype.permissionToAbbreviatedString = function(permission) {
   switch(permission) {
@@ -216,7 +217,7 @@ PermissionTable.prototype.permissionToAbbreviatedString = function(permission) {
     case 0: return "n";
     default: return "Invalid permission value";
   }
-}
+};
 
 PermissionTable.prototype.permissionToString = function(permission) {
   switch(permission) {
@@ -231,7 +232,7 @@ PermissionTable.prototype.permissionToString = function(permission) {
     default: 
       return "Invalid permission value: "+permission;
   }
-}
+};
 
 /*PermissionTable.prototype.assertionKeyValueToObject = function(key, value, resource) {
   return assertionKeyValueToObject(this, key, value, resource);
@@ -272,7 +273,7 @@ var createCheckPermissionsMethod = function(pt, scopeModel, scopeId, entityModel
       }
     });
   };
-}
+};
 
 /**
  * Checks if the specified parameter is defined, 
@@ -300,11 +301,11 @@ var checkRequiredParameter = function(pt, method, name, parameter, cb) {
   } else {
     return true;
   }
-}
+};
 
 var permissionAllowedString = function(isAllowed) {
   return (isAllowed) ? "granted" : "denied";
-}
+};
 
 /**
  * Create a method to accept a response from a database 
@@ -319,7 +320,7 @@ var createCombineMethod = function(pt, assertions, cb) {
   return function(err, results) {
     cb(undefined, combine(pt, assertions, results));
   }
-}
+};
 
 /**
  * Combine a list of assertion keys and query results 
@@ -359,7 +360,7 @@ var combine = function(pt, assertions, results) {
   }
 
   return ary;
-}
+};
 
 /**
  * Create an assetion key/value pair.
@@ -375,7 +376,7 @@ var buildAssertion = function(pt, scopeModel, scopeId, entityModel, entityId, pe
   var assertion = {};
   assertion[buildAssertionKey(pt, scopeModel, scopeId, entityModel, entityId)] = permission;
   return assertion;  
-}
+};
 
 /**
  * Create an assertion key given each piece of information.
@@ -388,7 +389,7 @@ var buildAssertion = function(pt, scopeModel, scopeId, entityModel, entityId, pe
  */
 var buildAssertionKey = function(pt, scopeModel, scopeId, entityModel, entityId) {
   return scopeModel + pt.delimiter + scopeId + pt.delimiter + entityModel + pt.delimiter + entityId;
-}
+};
 
 var assertionKeyValueToObject = function(pt, assertionKey, assertionValue, resource) {
   var assertionElements = assertionKey.split(pt.delimiter);
@@ -423,7 +424,7 @@ var assertionKeyValueToObject = function(pt, assertionKey, assertionValue, resou
   }
 
   return assertionObject;
-}
+};
 
 /**
  * Create an assertion describing a specific resource.  
@@ -449,7 +450,7 @@ var buildResourceObject = function(pt, scopeModel, scopeId, entityModel, entityI
   }
 
   return resource
-}
+};
 
 
 var buildAssertionObject = function(pt, scopeModel, scopeId, entityModel, entityId, permissions, correlation, resource) {
@@ -465,14 +466,14 @@ var buildAssertionObject = function(pt, scopeModel, scopeId, entityModel, entity
       id: scopeId,
       model: scopeModel
     }
-  }
+  };
 
   if(resource && ! correlation) {
     assertion.correlation = getPermissionCorrelation(pt, assertion)
   }
 
   return assertion
-}
+};
 
 /**
  * Determine the correlation between an asserition and a 
@@ -516,7 +517,7 @@ var getPermissionCorrelation = function(pt, assertion, resource) {
   }
 
   return cf;
-}
+};
 
 var getAssertion = function(pt, resource, cb) {
   var assertions = getRelatedAssertions(pt, resource),  
@@ -541,7 +542,7 @@ var getAssertion = function(pt, resource, cb) {
       cb(undefined, mpa);
     } 
   });
-}
+};
 
 /**
  * Get all possible permutations of assertions that 
@@ -590,7 +591,7 @@ var getRelatedAssertions = function(pt, resource) {
   }
 
   return assertions;
-}
+};
 
 
 /* ************************************************** *

@@ -3,15 +3,17 @@
  * ************************************************** */
 
 // External Modules.
-var async = require('async'),
-  crave = require('crave'),
-  path = require('path'),
-  _ = require('lodash');
+var EventEmitter = require('events'),
+    path = require('path'),
+    util = require('util'),
+    _ = require('lodash');
 
 // Local paths and folders.
 var attributePermissionFolder = path.resolve(__dirname, '.'+path.sep+'attributePermission') + path.sep,
+    configFolder = path.resolve(__dirname, ".."+path.sep+"config" + path.sep),
+    defaultConfigObject = require(configFolder + path.sep + "default.json"),
     databaseAdaptersFolder = path.resolve(__dirname, '.'+path.sep+'databaseAdapters') + path.sep,
-    permissionTableFolder = path.resolve(__dirname, '.'+path.sep+'permissionTable') + path.sep
+    permissionTableFolder = path.resolve(__dirname, '.'+path.sep+'permissionTable') + path.sep,
     logFolder = path.resolve(__dirname, '.'+path.sep+'log') + path.sep;
 
 // Local Modules.
@@ -19,196 +21,93 @@ var Log = require(logFolder),
     PermissionTable = require(permissionTableFolder),
     AttributePermission = require(attributePermissionFolder);
 
-// Default configuration object.
-var defaultConfig = {
-  attributePermissionDatabase: {
-    connectionUri: undefined,
-    idAttributeName: undefined,
-    instance: undefined,
-    type: 'mongoose'
-  },
-  permissionTableDatabase: {
-    connectionUri: undefined,
-    instance: undefined,
-    type: 'redis'
-  },
-  userModel: "user",
-  userModelId: "_id",
-  defaultId: "_id"
-};
-
 
 /* ************************************************** *
  * ******************** Constructor
  * ************************************************** */
 
 /**
- * Constructor to setup and initialize a new or existing
- * instance.
+ * Create and setup a new Defense instance.
  *
- * @param {object|undefined} config is a Defense configuration object.
+ * @param {object|undefined} options is a Defense configuration object.
  * @param {object|undefined} log is a bunyan instance.
- * @param {object|undefined} error is a Defense error instance.
  * @returns {object} the new or current Defense instance.
  * @constructor
  */
-var Defense = function(options, log, error) {
+var Defense = function(options, log) {
   "use strict";
 
   // Auto instantiate the module when it is required.
   if(! (this instanceof Defense)) {
-    return new Defense(options, log, error);
+    return new Defense(options, log);
   } else {
+    setConfig(this, options);
+    this.setLog(log, (options) ? options.log : this.config.log);
 
-    this.setConfig(options);
-    this.setLog(log, (options) ? options.log : undefined);
-    this.setError(error);
+    // Display logs from config initialization.
+    this.log.trace("Loaded config with root folder %s", process.env.NODE_CONFIG_DIR);
+
+    setEventHandlers(this);
+    setDatabaseAdapters(this);
 
     return this;
   }
 };
 
-module.exports = new Defense();
-var d = require('defense');
-
-module.exports = Defense;
-var d = require('defense')();
+util.inherits(Defense, EventEmitter);
 
 
 /* ************************************************** *
- * ******************** Initalize and Set Methods
+ * ******************** Initialize and Set Methods
  * ************************************************** */
 
 /**
- * Set and apply new configurations for Defense.
- * Any attribute included in the configuration 
- * object will overwrite the existing attribute.
+ * Initialize the configuration object to the default
+ * values, overriding values that are specified in the
+ * options argument.
  *
- * A config value of undefined will reset the 
- * configuration object to the default settings.
- *
- * @param {object|undefined} config is a Defense
- * configuration object.
- * @param {boolean|undefined} initalize when true
- * will set the Defense's config instance to the 
- * default settings before applying the passed
- * configuration values.
+ * @param {object} defense is an instance of defense.
+ * @param {object|undefined} options is an object that
+ * contains config values to be overridden.
+ * @return {object} the defense instance.
  */
-Defense.prototype.setConfig = function(config) {
-  if(config && _.isObject(config)) {
-    
-    if( ! this.config) {
-      this.config = JSON.parse(JSON.stringify(defaultConfig));
-    }
-
-    for(var key in config) {
-      switch(key) {
-        case "crave":
-          this.config[key] = config[key];
-          break;
-        default:
-          for(var subObjectKey in config[key]) {
-            this.config[key][subObjectKey] = config[key][subObjectKey];
-          }
-          break;
-      }
-    }
-  } else {
-    this.config = JSON.parse(JSON.stringify(defaultConfig));
+var setConfig = function(defense, options) {
+  if(process.env.NODE_CONFIG_DIR === undefined) {
+    process.env.NODE_CONFIG_DIR = configFolder;
   }
 
-  this.setDatabaseAdapters();
-};
+  // So applications don't get a "No config files"
+  // warning if they aren't using node-config.
+  process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
 
-/**
- * Set the database instance to the specified value.
- * PreCondition: Assumes setConfig has already been called at least once.
- * @param databaseInstance is the new database instance value.
- */
-Defense.prototype.setPermissionTableDatabaseInstance = function(instance) {
-  this.config.permissionTableDatabase.instance = instance;
-  this.setDatabaseAdapters();
-};
+  // Once this is called the config object returned in immutable.
+  var config = require('config');
 
-Defense.prototype.setAttributePermissionDatabaseInstance = function(instance) {
-  this.config.attributePermissionDatabase.instance = instance;
-  this.setDatabaseAdapters();
-};
-
-/**
- * Set or configure the Defense bunyan log instace.
- *
- * Passing a value of undefined for both the config
- * and log parameters will initalize a new bunyan 
- * log instance with the default values.
- *
- * @param {object|undefined} config is a bunyan
- * configuration object.
- * @param {object|undefined} log is a bunyan instance.
- */
-Defense.prototype.setLog = function(log, options) {
-  if(log) {
-    this.setLogInstance(log);
-  } else {
-    this.createNewLogger(options);
-  }  
-};
-
-Defense.prototype.setLogInstance = function(log) {
-  if(log) {
-    this.log = log;
-  } else {
-    this.log.error("Defense.setLogInstance():  Cannot set log to an invalid instance value.");
-  }  
-};
-
-Defense.prototype.createNewLogger = function(options) {
-  this.Log = new Log((this.config) ? this.config.log : undefined);
-  this.log = this.Log.createLogger(options);
-}
-
-/**
- * Set or configure the Defense error object.
- * The error object is used to build and display
- * errors that occur in Defense.
- *
- * Passing a value of undefined for the error
- * object will reset the error object to the 
- * default. 
- *
- * @param {object|undefined} error is an object
- * with methods related to building error objects.
- */
-Defense.prototype.setError = function(error) {
-  if(error) {
-    this.error = error;
-  } else {
-    this.error = {
-      build: function(message, code) {
-        var err = new Error(message);
-        err.status = code || 500;
-        return err;
-      }
-    };
+  // Override default config with options.
+  if(options && _.isObject(options)) {
+    config.util.extendDeep(defaultConfigObject, options);
+    config.util.setModuleDefaults('Defense', defaultConfigObject);
   }
+
+  // Once GET is called, the config object is now immutable.
+  config.get('defaultId');
+
+  defense.config = config;
+
+  return defense;
 };
 
 /**
- * Set the database adapter to interact with the desired 
- * database.
+ * Add and configure the database adapters to manage
+ * the permission database records.
  *
- * If the configuration object is undefined, then the current
- * configuraiton object will be used.
- *
- * @param {undefined|object} config is a Defense configuration
- * object.
+ * @param {undefined|object} defense is a defense instance.
+ * @return {object} the defense instance.
  */
-Defense.prototype.setDatabaseAdapters = function() {
-  var defense = this;
+var setDatabaseAdapters = function(defense) {
 
-  defense.ptda = getDatabaseAdapter(defense, defense.config.permissionTableDatabase.type);
-  defense.apda = getDatabaseAdapter(defense, defense.config.attributePermissionDatabase.type);
-  
+  defense.ptda = getDatabaseAdapter(defense, defense.config.get('permissionTableDatabase.type'));
+  defense.apda = getDatabaseAdapter(defense, defense.config.get('attributePermissionDatabase.type'));
 
   if( ! defense.pt) {
     defense.pt = new PermissionTable(defense);
@@ -218,9 +117,49 @@ Defense.prototype.setDatabaseAdapters = function() {
   }
 
   //defense.apda = getDatabaseAdapter(defense, defense.config.attributePermissionDatabase.type);
+  return defense;
 };
 
+/**
+ * Creates a database adapter instance of the specified type.
+ *
+ * @param {object} defense is a defense instance.
+ * @param {string} databaseType is the database adapter type to create.
+ * @returns {object|undefined} the specified database adapter instance.
+ */
+var getDatabaseAdapter = function(defense, databaseType) {
+  databaseType = (databaseType) ? databaseType.toLowerCase() : "";
+  switch(databaseType) {
+    case 'mongoose':
+    case 'redis':
+      if( ! defense[databaseType + "Adapter"]) {
+        defense[databaseType + "Adapter"] = require(databaseAdaptersFolder + databaseType +'.js');
+      }
+      return defense[databaseType + "Adapter"](defense);
+    default:
+      defense.emit('error', "Defense.getDatabaseAdapter():  Unsupported database adapter type \"" + databaseType + "\"");
+      return undefined;
+  }
+};
 
+/**
+ * Creates an event emitter and adds listeners for the
+ * defense instance.
+ *
+ * @param {undefined|object} defense is a defense instance.
+ * @return {object} the defense instance.
+ */
+var setEventHandlers = function(defense) {
+  EventEmitter.call(defense);
+
+  defense.on('error', function(err) {
+    defense.log.error(err);
+  });
+
+  defense.on('newListener', function(eventName, eventMethod) {
+    defense.log.trace("New listener for event %s", eventName)
+  });
+};
 
 /**
  * A method used to aid in the creation of a class
@@ -238,6 +177,26 @@ Defense.prototype.inherit = function(proto) {
 /* ************************************************** *
  * ******************** Public API
  * ************************************************** */
+
+/**
+ * Set or configure Defense's bunyan log instance.
+ *
+ * Passing a value of undefined for both the config
+ * and log parameters will initialize a new bunyan
+ * log instance with the default values.
+ *
+ * @param {object|undefined} log is a bunyan instance.
+ * @param {object|undefined} options is a bunyan
+ * configuration object.
+ */
+Defense.prototype.setLog = function(log, options) {
+  if(log) {
+    this.log = log;
+  } else {
+    var LogModule = new Log();
+    this.log = LogModule.createLogger(options);
+  }
+};
 
 /**
  * Check if a user has permission to delete a given 
@@ -525,22 +484,9 @@ var checkRequiredParameter = function(defense, method, name, parameter, cb) {
   } else {
     return true;
   }
-}
+};
 
-var getDatabaseAdapter = function(defense, databaseType) {
-  databaseType = (databaseType) ? databaseType.toLowerCase() : "";
-  switch(databaseType) {
-    case 'mongoose':
-    case 'redis':
-      if( ! defense.RedisAdapter) {
-        defense[databaseType + "Adapter"] = require(databaseAdaptersFolder + databaseType +'.js');
-      }
-      return defense[databaseType + "Adapter"](defense);
-    default:
-      defense.log.fatal("Defense.getDatabaseAdapter():  Invalid and unsupported database adapter type.");
-      return undefined;
-  }
-}
+
 
 
 /* ************************************************** *
@@ -559,7 +505,7 @@ module.exports = Defense;
  * This callback is used to return the result of a 
  * permission check request.  An error and boolean 
  * value will always be returned to this method 
- * respectively.  If an error occured, a value of false 
+ * respectively.  If an error occurred, a value of false
  * will always be returned as well.  If the assessment 
  * was successful, a value of true will indicate the 
  * user has permission to the specified action and 
@@ -577,7 +523,7 @@ module.exports = Defense;
  * This callback is used to return the sanitized array 
  * or object.  An error and result value will always be 
  * returned to this method respectively.  If an error 
- * occured, an empty array or empty object will always 
+ * occurred, an empty array or empty object will always
  * be returned as well.  If the operation was 
  * successful, an sanitized array or object will be 
  * returned matching the object type of the original 

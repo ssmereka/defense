@@ -1,0 +1,14 @@
+{
+  "attributePermissionDatabase": {
+    "connectionUri": "",
+    "idAttributeName": "",
+    "type": "mongoose"
+  },
+  "permissionTableDatabase": {
+    "connectionUri": "",
+    "type": "redis"
+  },
+  "userModel": "user",
+  "userModelId": "_id",
+  "defaultId": "_id"
+}

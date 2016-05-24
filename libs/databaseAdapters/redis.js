@@ -17,8 +17,8 @@ module.exports = function(lib) {
    * ************************************************** */
 
   /**
-   * Initalizes a new Mongoose Adapter and configures the
-   * parent Database Adapter class.
+   * Initializes a new Redis adapter and configures the
+   * parent database adapter class.
    */
   function RedisAdapter(instance) {
     //this.idAttributeName = lib.config.database.idAttributeName || '_id';
@@ -52,7 +52,7 @@ module.exports = function(lib) {
         cb(err, transaction || {});
       }
     }
-  }
+  };
 
   /**
    * Called before any database action is taken.  Allows

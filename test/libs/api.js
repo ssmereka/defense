@@ -1,4 +1,5 @@
-var ASSERTIONS = require('../data/assertions.json'),
+var policyTableAssertions = require('../data/assertions.json'),
+    attributeAssertions = require('../data/attributeAssertions.json'),
     assert = require("assert"),
     defense = require('../../libs/index.js')(),
     should = require("should");
@@ -6,14 +7,20 @@ var ASSERTIONS = require('../data/assertions.json'),
 describe('API method', function() {
 
   beforeEach(function(done) {
-    defense.pt.add(ASSERTIONS, function(err, results) {
-      done();
+    defense.pt.add(policyTableAssertions, function(err, results) {
+      if(err) { return done(err); }
+      defense.ap.add(attributeAssertions, function(err, results) {
+        done(err);
+      });
     });
   });
 
   afterEach(function(done) {
-    defense.pt.remove(ASSERTIONS, function(err, result) {
-      done(err);
+    defense.pt.remove(policyTableAssertions, function(err, result) {
+      if(err) { return done(err); }
+      defense.ap.remove(attributeAssertions, function(err, results) {
+        done(err);
+      });
     });
   });
 

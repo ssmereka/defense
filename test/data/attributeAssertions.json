@@ -1,0 +1,47 @@
+[
+  {
+    "_id": "900000000000000000000000",
+    "attributes": {
+      "secretData": {
+        "user:*": 0
+      }
+    },
+    "defaults": {
+      "user:*": 4,
+      "user:@": 6
+    },
+    "scopeModel": "item"
+  }, {
+    "_id": "900000000000000000000001",
+    "attributes": {
+      "username": {
+        "user:*": 4
+      }
+    },
+    "defaults": {
+      "user:*": 0,
+      "user:@": 6
+    },
+    "scopeModel": "user"
+  }, {
+    "_id": "900000000000000000000002",
+    "attributes": {
+    },
+    "defaults": {
+      "user:000000000000000000000000": 6
+    },
+    "scopeId": "100000000000000000000000",
+    "scopeModel": "item"
+  }, {
+    "_id": "900000000000000000000003",
+    "attributes": {
+      "secretData": {
+        "user:000000000000000000000000": 4
+      }
+    },
+    "defaults": {
+    },
+    "scopeId": "100000000000000000000001",
+    "scopeModel": "item"
+  }
+]

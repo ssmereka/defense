@@ -12,8 +12,10 @@
     "async": "~1.5.2",
     "bunyan": "~1.5.1",
     "bunyan-pretty-stream": "~1.0.1",
+    "config": "^1.20.1",
     "crave": "~0.0.14",
     "lodash": "~4.2.1",
+    "mongoose": "^4.4.6",
     "redis": "~2.4.2"
   },
   "directories": {

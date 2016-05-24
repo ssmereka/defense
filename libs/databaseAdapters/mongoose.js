@@ -1,4 +1,4 @@
-module.exports = function(lib) {
+module.exports = function(lib, options) {
 
 
   /* ************************************************** *
@@ -21,12 +21,12 @@ module.exports = function(lib) {
    * parent Database Adapter class.
    */
   function MongooseAdapter() {
-    this.idAttributeName = lib.config.database.idAttributeName || '_id';
+    this.idAttributeName = lib.config.defaultId || '_id';
 
-    if( ! lib.config.database.instance) {
+    if( ! lib.config.attributePermissionDatabase.instance) {
       this.mongoose = require('mongoose');
     } else {
-      this.mongoose = lib.config.database.instance;
+      this.mongoose = lib.config.attributePermissionDatabase.instance;
     }
     
     DatabaseAdapter.call(this, lib.config, lib.log);
@@ -81,21 +81,36 @@ module.exports = function(lib) {
       //console.log("MongooseAdapter.startTransaction():  Mongoose not connected.");
       
       // Make sure the connection URI is specified.
-      if( ! lib.config.database.connectionUri) {
-        lib.config.database.connectionUri = 'mongodb://localhost/lib';
-        lib.log.warn('Database not connected and the Mongoose connection URI is not specified, defaulting to %s', lib.config.database.connectionUri)
+      //if( ! lib.config.database.connectionUri) {
+      if( ! lib.config.attributePermissionDatabase.connectionUri) {
+        //lib.config.database.connectionUri = 'mongodb://localhost/defense';
+        lib.config.attributePermissionDatabase.connectionUri = 'mongodb://localhost/defense';
+        lib.log.warn('Database not connected and the Mongoose connection URI is not specified, defaulting to %s', lib.config.attributePermissionDatabase.connectionUri)
       }
 
       // Handle when mongoose connects and/or errors.
       adapter.mongoose.connection.on('error', adapter.createMongooseTransactionEventMethod(transaction, cb));
       adapter.mongoose.connection.once('connected', adapter.createMongooseTransactionEventMethod(transaction, cb)); 
       
-      // Start connecting to the database.
-      adapter.mongoose.connect(lib.config.database.connectionUri || 'mongodb://localhost/lib');
+      registerSchemas(adapter, function(err) {
+        // Start connecting to the database.
+        adapter.mongoose.connect(lib.config.attributePermissionDatabase.connectionUri);
+      });
     } else {
       cb(undefined, transaction);
     }
   };
+
+  var registerSchemas = function(adapter, cb) {
+    AttributePermissionSchema = new adapter.mongoose.Schema({
+      "attributes": {},
+      "defaults": {},
+      "scopeModel": { type: String },
+      "scopeId": { type: String }
+    });
+    adapter.mongoose.model("AttributePermission", AttributePermissionSchema);
+    cb();
+  }
 
 
   /* ************************************************** *
@@ -410,7 +425,7 @@ module.exports = function(lib) {
    * the database.
    * @param {cudMultipleItemCallback} cb is a callback method.
    */
-  MongooseAdapter.prototype.removeItems = function(items, schemaName, cb) {
+  MongooseAdapter.prototype.removeItems = function(schemaName, items, cb) {
     if( ! _.isArray(items)) {
       items = [ items ];
     }
@@ -572,7 +587,7 @@ module.exports = function(lib) {
    * ******************** Export and Initalize
    * ************************************************** */
 
-  return new MongooseAdapter();
+  return new MongooseAdapter;
 
 };
 
