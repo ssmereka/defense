@@ -1,4 +1,18 @@
 {
+  "assertion": {
+    "default": {
+      "entityModel": "",
+      "entityId": "",
+      "permissions": [ "None" ],
+      "scopeModel": "",
+      "scopeId": ""
+    },
+    "delimiter": ":",
+    "operators": {
+      "wildcard": "*",
+      "owner": "@"
+    }
+  },
   "attributePermissionDatabase": {
     "connectionUri": "",
     "idAttributeName": "",

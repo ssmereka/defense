@@ -1,4 +1,5 @@
 var defense = require('../libs/index.js')(),
+    //Assertion = defense.Assertion,
     express = require('express'),
     path = require('path');
 
@@ -23,20 +24,26 @@ api.route('/', function(req, res, next) {
 app.use('/api/:version/', api);
 
 defense.on('error', function(err) {
-  console.log("ERRRRRRR" + err);
+  // Handle errors here.
 });
 
-defense.on('fatal', function(err) {
-  console.log("FATAL THING!")
-  console.log(err);
-});
-defense.on('test', function(err) {
-  console.log("test!! Success@!@")
-});
+//console.log(Assertion);
+var assertions = [];
+assertions.push(new defense.Assertion().give('User', '1').permission('read', 'write').entity('User'));
+console.log(assertions[0]);
 
 
-/*
-defense.setup(function(err) {
+
+var assertion = new defense.Assertion;
+//assertion.give('User', '12345').permission('read', 'write');
+assertion.give('User', '1').permission('read', 'write').entity('User');
+assertion.give('Product').permission('read', 'write').entity('Product', '12345');
+console.log(assertion.toObject());
+console.log(assertion.toString());
+assertion.permission(0);
+
+
+/*defense.setup(function(err) {
   if(err) { console.log(err); }
 
   defense.canRead({ _id: "1" }, "user", [ {_id:"123"}, {_id:"321"}, {_id:"1"}, {_id:"2"}, {_id:"3"}, {_id:"4"}, {_id:"5"}, {_id:"6"} ], function(err, isAllowed) {
@@ -63,7 +70,6 @@ defense.setup(function(err) {
   });
 });
 */
-
 
 // Method to connect to database and start the server.
 var startServer = function() {

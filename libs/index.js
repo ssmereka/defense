@@ -9,7 +9,8 @@ var EventEmitter = require('events'),
     _ = require('lodash');
 
 // Local paths and folders.
-var attributePermissionFolder = path.resolve(__dirname, '.'+path.sep+'attributePermission') + path.sep,
+var assertionFolder = path.resolve(__dirname, '.'+path.sep+'assertion') + path.sep,
+    attributePermissionFolder = path.resolve(__dirname, '.'+path.sep+'attributePermission') + path.sep,
     configFolder = path.resolve(__dirname, ".."+path.sep+"config" + path.sep),
     defaultConfigObject = require(configFolder + path.sep + "default.json"),
     databaseAdaptersFolder = path.resolve(__dirname, '.'+path.sep+'databaseAdapters') + path.sep,
@@ -17,9 +18,10 @@ var attributePermissionFolder = path.resolve(__dirname, '.'+path.sep+'attributeP
     logFolder = path.resolve(__dirname, '.'+path.sep+'log') + path.sep;
 
 // Local Modules.
-var Log = require(logFolder),
-    PermissionTable = require(permissionTableFolder),
-    AttributePermission = require(attributePermissionFolder);
+var Assertion = require(assertionFolder),
+    AttributePermission = require(attributePermissionFolder),
+    Log = require(logFolder),
+    PermissionTable = require(permissionTableFolder);
 
 
 /* ************************************************** *
@@ -108,6 +110,7 @@ var setDatabaseAdapters = function(defense) {
 
   defense.ptda = getDatabaseAdapter(defense, defense.config.get('permissionTableDatabase.type'));
   defense.apda = getDatabaseAdapter(defense, defense.config.get('attributePermissionDatabase.type'));
+  defense.Assertion = Assertion();
 
   if( ! defense.pt) {
     defense.pt = new PermissionTable(defense);
@@ -179,11 +182,7 @@ Defense.prototype.inherit = function(proto) {
  * ************************************************** */
 
 /**
- * Set or configure Defense's bunyan log instance.
- *
- * Passing a value of undefined for both the config
- * and log parameters will initialize a new bunyan
- * log instance with the default values.
+ * Set or create a new bunyan log instance.
  *
  * @param {object|undefined} log is a bunyan instance.
  * @param {object|undefined} options is a bunyan
@@ -487,14 +486,11 @@ var checkRequiredParameter = function(defense, method, name, parameter, cb) {
 };
 
 
-
-
 /* ************************************************** *
  * ******************** Expose the Public API
  * ************************************************** */
 
 module.exports = Defense;
-
 
 
 /* ************************************************** *
