@@ -12,7 +12,7 @@ var async = require('async'),
  * ************************************************** */
 
 /**
- * Initalizes a new Mongoose Adapter and configures the
+ * Initializes a new Mongoose Adapter and configures the
  * parent Database Adapter class.
  */
 var PermissionTable = function(defense) {
@@ -41,19 +41,6 @@ var PermissionTable = function(defense) {
 /* ************************************************** *
  * ******************** Public API
  * ************************************************** */
-
-/**
- * Build an assertion object from the key components.
- * @param {String} scopeModel is the scope model identifier.
- * @param {String} scopeId is the scope id identifier.
- * @param {String} entityModel is the entity model identifier.
- * @param {String} entityId is the entity id identifier.
- * @param {Number} permission is the permission value.
- * @return {Object} an assertion object.
- */
-PermissionTable.prototype.build = function(scopeModel, scopeId, entityModel, entityId, permission) {
-  return buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission);
-};
 
 /**
  * Add one or more assertions to the database.
@@ -129,18 +116,6 @@ PermissionTable.prototype.get = function(assertions, cb) {
   }
 };
 
-PermissionTable.prototype.buildAndAdd = function(scopeModel, scopeId, entityModel, entityId, permission, cb) {
-  this.add(buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission), cb);
-};
-
-PermissionTable.prototype.buildAndRemove = function(scopeModel, scopeId, entityModel, entityId, permission, cb) {
-  this.remove(buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission), cb);
-};
-
-PermissionTable.prototype.buildAndGet = function(scopeModel, scopeId, entityModel, entityId, permission, cb) {
-  this.get(buildAssertion(this, scopeModel, scopeId, entityModel, entityId, permission), cb);
-};
-
 PermissionTable.prototype.can = function(user, model, resources, permissions, stopOnPermissionDenied, cb) {
   var pt = this;
 
@@ -204,49 +179,6 @@ PermissionTable.prototype.checkPermissions = function(scopeModel, scopeId, entit
     }
   });
 };
-
-PermissionTable.prototype.permissionToAbbreviatedString = function(permission) {
-  switch(permission) {
-    case 7: return "rwd";
-    case 6: return "rw";
-    case 5: return "rd";
-    case 4: return "r";
-    case 3: return "wd";
-    case 2: return "w";
-    case 1: return "d";
-    case 0: return "n";
-    default: return "Invalid permission value";
-  }
-};
-
-PermissionTable.prototype.permissionToString = function(permission) {
-  switch(permission) {
-    case 7: return "read, write, and delete";
-    case 6: return "read and write";
-    case 5: return "read and delete";
-    case 4: return "read";
-    case 3: return "write and delete";
-    case 2: return "write";
-    case 1: return "delete";
-    case 0: return "none";
-    default: 
-      return "Invalid permission value: "+permission;
-  }
-};
-
-/*PermissionTable.prototype.assertionKeyValueToObject = function(key, value, resource) {
-  return assertionKeyValueToObject(this, key, value, resource);
-}*/
-
-PermissionTable.prototype.rwd = 7;
-PermissionTable.prototype.rw  = 6;
-PermissionTable.prototype.rd  = 5;
-PermissionTable.prototype.r   = 4;
-PermissionTable.prototype.wd  = 3;
-PermissionTable.prototype.w   = 2;
-PermissionTable.prototype.d   = 1;
-PermissionTable.prototype.n   = 0;
-
 
 
 /* ************************************************** *
@@ -362,34 +294,7 @@ var combine = function(pt, assertions, results) {
   return ary;
 };
 
-/**
- * Create an assetion key/value pair.
- * @param  {[type]} pt 
- * @param  {[type]} scopeModel  [description]
- * @param  {[type]} scopeId     [description]
- * @param  {[type]} entityModel [description]
- * @param  {[type]} entityId    [description]
- * @param  {[type]} permission  [description]
- * @return {Object}
- */
-var buildAssertion = function(pt, scopeModel, scopeId, entityModel, entityId, permission) {
-  var assertion = {};
-  assertion[buildAssertionKey(pt, scopeModel, scopeId, entityModel, entityId)] = permission;
-  return assertion;  
-};
 
-/**
- * Create an assertion key given each piece of information.
- * @param {Object} pt is the policy table instance.
- * @param {String} scopeModel is the scope model identifier.
- * @param {String} scopeId is the scope id identifier.
- * @param {String} entityModel is the entity model identifier.
- * @param {String} entityId is the entity id identifier.
- * @return {String} an assertion key string.
- */
-var buildAssertionKey = function(pt, scopeModel, scopeId, entityModel, entityId) {
-  return scopeModel + pt.delimiter + scopeId + pt.delimiter + entityModel + pt.delimiter + entityId;
-};
 
 var assertionKeyValueToObject = function(pt, assertionKey, assertionValue, resource) {
   var assertionElements = assertionKey.split(pt.delimiter);

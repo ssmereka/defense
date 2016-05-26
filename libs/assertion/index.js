@@ -13,6 +13,27 @@ module.exports = function() {
     PERMISSION_DELETE = 1,
     PERMISSION_NONE = 0;
 
+  var addRead = function(currentPermissions) {
+    if ((currentPermissions & PERMISSION_READ) != PERMISSION_READ) {
+      currentPermissions += PERMISSION_READ;
+    }
+    return currentPermissions;
+  };
+
+  var addWrite = function(currentPermissions) {
+    if ((currentPermissions & PERMISSION_WRITE) != PERMISSION_WRITE) {
+      currentPermissions += PERMISSION_WRITE
+    }
+    return currentPermissions;
+  };
+
+  var addDelete = function(currentPermissions) {
+    if ((currentPermissions & PERMISSION_DELETE) != PERMISSION_DELETE) {
+      currentPermissions += PERMISSION_DELETE;
+    }
+    return currentPermissions;
+  };
+
   var addPermissions = function(currentPermissions, newPermissions) {
     if( ! currentPermissions) {
       currentPermissions = PERMISSION_NONE;
@@ -24,28 +45,51 @@ module.exports = function() {
       }
 
       switch (permission) {
+        case PERMISSION_READ_WRITE_DELETE:
+        case "rwd":
+        case "read, write, delete":
+          currentPermissions = addRead(currentPermissions);
+          currentPermissions = addWrite(currentPermissions);
+          currentPermissions = addDelete(currentPermissions);
+          break;
+
+        case PERMISSION_READ_WRITE:
+        case "rw":
+        case "read, write":
+          currentPermissions = addRead(currentPermissions);
+          currentPermissions = addWrite(currentPermissions);
+          break;
+
+        case PERMISSION_READ_DELETE:
+        case "rd":
+        case "read, delete":
+          currentPermissions = addRead(currentPermissions);
+          currentPermissions = addDelete(currentPermissions);
+          break;
+
+        case PERMISSION_WRITE_DELETE:
+        case "wd":
+        case "write, delete":
+          currentPermissions = addWrite(currentPermissions);
+          currentPermissions = addDelete(currentPermissions);
+          break;
+
         case PERMISSION_READ:
         case "r":
         case "read":
-          if ((currentPermissions & PERMISSION_READ) != PERMISSION_READ) {
-            currentPermissions += PERMISSION_READ;
-          }
+          currentPermissions = addRead(currentPermissions);
           break;
 
         case PERMISSION_DELETE:
         case "d":
         case "delete":
-          if ((currentPermissions & PERMISSION_DELETE) != PERMISSION_DELETE) {
-            currentPermissions += PERMISSION_DELETE;
-          }
+          currentPermissions = addDelete(currentPermissions);
           break;
 
         case PERMISSION_WRITE:
         case "w":
         case "write":
-          if ((currentPermissions & PERMISSION_WRITE) != PERMISSION_WRITE) {
-            currentPermissions += PERMISSION_WRITE
-          }
+          currentPermissions = addWrite(currentPermissions);
           break;
 
         case PERMISSION_NONE:
@@ -95,32 +139,13 @@ module.exports = function() {
   class Assertion {
 
     constructor(scopeModel, scopeId, entityModel, entityId, permissions) {
-      this.assertion = {
-        entity: {
-          model: entityModel || DEFAULT_ENTITY_MODEL,
-          id: entityId || DEFAULT_ENTITY_ID
-        },
-        permissions: permissions || DEFAULT_PERMISSION,
-        scope: {
-          model: scopeModel || DEFAULT_SCOPE_MODEL,
-          id: scopeId || DEFAULT_SCOPE_ID
-        }
-      };
-    }
+      this.setDefault();
 
-    give(model, id) {
-      if (model) {
-        this.assertion.scope.model = model;
+      if(arguments.length == 1 && arguments[0] !== null && typeof arguments[0] === 'object') {
+        this.fromObject(arguments[0]);
+      } else {
+        this.give(scopeModel, scopeId).permission(permissions).entity(entityModel, entityId);
       }
-      if (id) {
-        this.assertion.scope.id = id;
-      }
-      return this;
-    }
-
-    permission() {
-      this.assertion.permissions = addPermissions(this.assertion.permissions, Array.prototype.slice.call(arguments));
-      return this;
     }
 
     entity(model, id) {
@@ -133,10 +158,27 @@ module.exports = function() {
       return this;
     }
 
-    toObject() {
-      let obj = {};
-      obj[this.key()] = this.value();
-      return obj;
+    fromObject(obj) {
+      if(obj !== null && typeof obj === 'object' && Object.keys(obj).length == 1) {
+        let key = Object.keys(obj)[0],
+          items = key.split(DELIMITER);
+
+        if(items.length == 4) {
+          this.give(items[0], items[1]).entity(items[2], items[3]);
+        }
+        this.permission(Number(obj[key]));
+      }
+      return this;
+    }
+
+    give(model, id) {
+      if (model) {
+        this.assertion.scope.model = model;
+      }
+      if (id) {
+        this.assertion.scope.id = id;
+      }
+      return this;
     }
 
     key() {
@@ -146,26 +188,51 @@ module.exports = function() {
         + this.assertion.entity.id;
     }
 
-    value() {
-      return this.assertion.permissions;
+    permission() {
+      this.assertion.permissions = addPermissions(this.assertion.permissions, Array.prototype.slice.call(arguments));
+      return this;
+    }
+
+    setDefault() {
+      this.assertion = {
+        entity: {
+          model: DEFAULT_ENTITY_MODEL,
+          id: DEFAULT_ENTITY_ID
+        },
+        permissions: DEFAULT_PERMISSION,
+        scope: {
+          model: DEFAULT_SCOPE_MODEL,
+          id: DEFAULT_SCOPE_ID
+        }
+      };
+    }
+
+    toObject() {
+      let obj = {};
+      obj[this.key()] = this.value();
+      return obj;
     }
 
     toString() {
       return "\"" + this.key() + "\"" + " = " + Assertion.permissionNumberToString(this.value());
     }
 
+    value() {
+      return this.assertion.permissions;
+    }
+
     static permissionNumberToString(permission) {
       switch (permission) {
         case 7:
-          return "Read, Write, Delete";
+          return "Read, Write, and Delete";
         case 6:
-          return "Read, Write";
+          return "Read and Write";
         case 5:
-          return "Read, Delete";
+          return "Read and Delete";
         case 4:
           return "Read";
         case 3:
-          return "Write, Delete";
+          return "Write and Delete";
         case 2:
           return "Write";
         case 1:

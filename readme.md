@@ -27,3 +27,9 @@ Further documentation can be found in the <a href="https://github.com/ssmereka/d
 
 
 ### <a href="http://www.tldrlegal.com/license/mit-license" target="_blank">MIT License</a>
+
+
+Print all assertions
+```
+console.log(assertions.join("\n"));
+```
